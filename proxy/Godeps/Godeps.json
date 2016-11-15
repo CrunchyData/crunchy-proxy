@@ -1,0 +1,27 @@
+{
+	"ImportPath": "github.com/crunchydata/crunchy-proxy/proxy-golang",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Deps": [
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest/rest",
+			"Comment": "v3.3.1-9-g4f1814e",
+			"Rev": "4f1814e6e38174c46a6cccdda906987d04b735f6"
+		},
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest/rest/trie",
+			"Comment": "v3.3.1-9-g4f1814e",
+			"Rev": "4f1814e6e38174c46a6cccdda906987d04b735f6"
+		},
+		{
+			"ImportPath": "github.com/lib/pq",
+			"Comment": "go1.0-cutoff-117-g50761b0",
+			"Rev": "50761b0867bd1d9d069276790bcd4a3bccf2324a"
+		},
+		{
+			"ImportPath": "github.com/lib/pq/oid",
+			"Comment": "go1.0-cutoff-117-g50761b0",
+			"Rev": "50761b0867bd1d9d069276790bcd4a3bccf2324a"
+		}
+	]
+}

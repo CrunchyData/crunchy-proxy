@@ -1,0 +1,135 @@
+# Crunchy Proxy
+
+## Abstract
+
+High Availability solutions currently use multiple tools in conjunction in order to robustly solve a problem. The aim of the crunchy-proxy project is to determine the feasability of developing a proxy component of which would be part
+of a larger HA toolset. 
+
+As described in more detail below, this project defines the Crunchy Proxy as containing the following features:
+
+- Ability to understand the PostgreSQL wire protocol
+- Ability to load balancer SQL commands to multiple backends within a cluster
+- Routing based on SQL commands
+- PostgreSQL Connection Pooling
+- Configuration Manager
+ - Dynamic Configuration
+ - User Interface
+- Publish Events
+- SELinux Integration
+- PostgreSQL Health Checks
+
+## Crunchy Proxy Feature Discussion
+
+### PostgreSQL Health-Checks
+
+#### Requirements
+
+PostgreSQL health-checks would be used to manage routing of messages
+to backends that report a healthy status.
+
+#### Status
+
+A form of health check is implemented as a separate background 
+thread which sets a global healthy status flag for each backend.  
+
+### PostgreSQL Load Balancing
+
+#### Requirements
+- Round-robin for reads (basic feature)
+- Load averaging (nice to have)
+
+#### Status
+- a simple form of load balancing is implemented using a very simple
+algorithm which picks a backend using a random number generator
+
+### PostgreSQL Wire Protocol
+
+#### Requirements
+- Understand enough PostgreSQL Binary Protocol to perform the following:
+ - authenticate to a backend
+ - handle username and password md5 authentication
+ - handle libpq and psql clients
+ - route Reads to replica backends
+ - route writes to Master backend
+- SQL Parsing
+ - BISON grammar (necessary?)
+   - Parser exists for Postgres
+   - Pull out of Postgres and put in Crunchy Proxy
+ - Ability to toggle feature
+
+#### Status
+- a simplistic implementation exists that uses simple string search for certain keywords to determine if a SQL command is a read or write operation
+- users have to initially authenticate to the master backend before subsequent
+SQL commands are processed, replica and connection pools use a
+username and password to authenticate to their respective backends
+
+### PostgreSQL Connection Pooling
+
+#### Requirements
+
+- Similar to pgBouncer
+- Failover / connection patching
+ - Connection comes in with backend and hot-patch connection
+ - Queueing mechanism (degrades with scale)
+
+#### Status
+
+- a simple connection pool is defined in the configuration
+- the connection pools are created and authentication is performed at startup
+
+### Dynamic Configuration
+
+#### Requirements
+- Spin up cluster easily
+- Single or many
+- No need to shutdown proxy
+
+#### Status
+- not implemented yet
+
+### Publish Events
+
+#### Requirements
+
+- Failure propagation
+ - Publish and subscribe mechanism
+ - Event-driven for fencing
+ - Bring up / shutdown
+ - etcd watches (?)
+
+#### Status
+
+- health check events are published to a streaming REST API currently
+
+### SELinux Integration
+
+#### Requirements
+
+- Similar to IBM Datapower
+- Proxy filters network traffic
+
+#### Assumptions
+
+- This feature can be implemented at the system-level using current SELinux mechanisms
+
+#### Hypothesis
+
+- This feature should be tied into the Management mechanism in order to facilitate easier SELinux Management
+
+#### Assessment
+
+N/A
+
+### Management Interface and UI
+
+#### Requirements
+
+- Configuration and stats collection
+- REST API -> usable by curl
+- Dynamic Configuration
+
+#### Status
+
+- mgmt interface is exposed via a REST API which executes in a separate thread
+- Low-priority
+- More likely to follow other feature implementations
