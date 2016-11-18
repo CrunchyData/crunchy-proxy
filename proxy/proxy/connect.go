@@ -56,54 +56,38 @@ func connect(cfg *config.Config, client net.Conn) {
 	}
 
 	LogProtocol("<--", "master", masterBuf, masterReadLen)
+	//here you will get an R authrequest or an N notice from the master
 
-	//write to client only the master "N" response
-	_, err = client.Write(masterBuf[:masterReadLen])
-	if err != nil {
-		log.Println("[proxy] closing client conn" + err.Error())
-		return
+	if msgType == "N" {
+		//write to client only the master "N" response
+		msgType = ProtocolMsgType(masterBuf)
+		log.Println("sending N to client")
+		_, err = client.Write(masterBuf[:masterReadLen])
+		if err != nil {
+			log.Println("[proxy] closing client conn" + err.Error())
+			return
+		}
+
+		//read the next message from the master
+		masterReadLen, err = cfg.Master.TCPConn.Read(masterBuf)
+		msgType = ProtocolMsgType(masterBuf)
+		log.Println("read from master after N msgType=" + msgType)
+		copy(replicaBuf, masterBuf)
 	}
-
-	//read the startup part 2 message from the client
-	clientLen, err = client.Read(masterBuf)
-	if err != nil {
-		log.Println("[proxy] error reading from client conn" + err.Error())
-		return
-	}
-	copy(replicaBuf, masterBuf)
-
-	msgType = ProtocolMsgType(masterBuf)
-	//log.Println("msgType here is " + msgType)
-	LogProtocol("-->", msgType, masterBuf, clientLen)
-
-	masterReadLen, err = cfg.Master.TCPConn.Write(masterBuf[:clientLen])
-	masterReadLen, err = cfg.Master.TCPConn.Read(masterBuf)
-	//masterReadLen, err = WriteRead("master", cfg.Master.TCPConn, clientLen, masterBuf)
-	if err != nil {
-		log.Println("master WriteRead error:" + err.Error())
-	}
-	/**
-	_, err = WriteRead("replica0", cfg.Replicas[0].TCPConn, clientLen, replicaBuf)
-	if err != nil {
-		log.Println("replica WriteRead error: " + err.Error())
-	}
-	replicaSalt = AuthenticationRequest(replicaBuf)
-	log.Printf("picked out replicaSalt of %x\n", replicaSalt)
-	*/
-
-	//msgType = ProtocolMsgType(masterBuf)
-	//log.Println("pt 3 got here msgType=" + msgType)
-	LogProtocol("<--", "master", masterBuf, masterReadLen)
 
 	//
 	//send R authentication request to client
 	//
+	msgType = ProtocolMsgType(masterBuf)
+	log.Println("sending msgType to client:" + msgType)
+	log.Println("should be R Auth msg here send R auth to client")
 	_, err = client.Write(masterBuf[:masterReadLen])
 	if err != nil {
 		log.Println("[proxy] closing client conn" + err.Error())
 		return
 	}
 
+	log.Println("read client response after R was sent")
 	clientLen, err = client.Read(masterBuf)
 	if err != nil {
 		log.Println("[proxy] error reading from client conn" + err.Error())

@@ -75,6 +75,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		msgType = ProtocolMsgType(masterBuf)
 		LogProtocol("-->", "", masterBuf, reqLen)
 
+		log.Println("here is a new msgType=" + msgType)
+
 		//
 		// adapt inbound data
 		//err = cfg.Adapter.Do(&masterBuf, reqLen)
@@ -83,6 +85,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		//return
 		//}
 
+		//todo still needed?
 		copy(replicaBuf, masterBuf)
 
 		if msgType == "X" {
