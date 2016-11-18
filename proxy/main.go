@@ -7,12 +7,14 @@ import (
 	"log"
 )
 
+var cfg config.Config
+
 func main() {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
 	log.Println("main starting...")
 
 	//get the Config
-	cfg := config.ReadConfig()
+	cfg = config.ReadConfig()
 	go admin.StartHealthcheck(&cfg)
 	cfg.SetupAdapters()
 	cfg.PrintNodeInfo("after SetupAdapters")

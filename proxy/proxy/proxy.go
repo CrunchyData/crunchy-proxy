@@ -60,7 +60,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 	var writeCase = false
 	var err error
 	var reqLen int
-	var nextNode config.Node
+	var nextNode *config.Node
 	var backendConn *net.TCPConn
 	var poolIndex int
 
@@ -93,7 +93,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			writeCase = IsWriteAnno(masterBuf)
 			if writeCase {
 				backendConn = cfg.Master.TCPConn
-				cfg.Master.Stats.Writes++
+				cfg.Master.Stats.Writes = cfg.Master.Stats.Writes + 1
 				log.Printf("query writeCase sending to %s\n", cfg.Master.IPAddr)
 				log.Println("+++++++++++incrementing writes=%d\n", cfg.Master.Stats.Writes)
 			} else {
@@ -103,7 +103,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 					return
 				}
 				log.Println("+++++++++++incrementing reads=%d\n", nextNode.Stats.Reads)
-				nextNode.Stats.Reads++
+				nextNode.Stats.Reads = nextNode.Stats.Reads + 1
 				//get pool index from pool channel
 				poolIndex = <-nextNode.Pool.Channel
 

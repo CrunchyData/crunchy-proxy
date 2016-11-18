@@ -190,7 +190,7 @@ func (c *Config) SetupAdapters() {
 }
 
 //eventually this would be a load balancer algorithm function
-func (c *Config) GetNextNode(writeCase bool) (Node, error) {
+func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
 
 	var err error
 	var rCnt = len(c.Replicas)
@@ -198,10 +198,10 @@ func (c *Config) GetNextNode(writeCase bool) (Node, error) {
 	if writeCase || rCnt == 0 {
 		if !c.Master.Healthy {
 			log.Println("master is unhealthy!")
-			return c.Master, errors.New("unhealthy master")
+			return &c.Master, errors.New("unhealthy master")
 		}
 		log.Println("writeCase so using master as node...")
-		return c.Master, err
+		return &c.Master, err
 	}
 
 	var replicaHealthy = false
@@ -217,9 +217,9 @@ func (c *Config) GetNextNode(writeCase bool) (Node, error) {
 		log.Println("no replicas are healthy..using master")
 		if !c.Master.Healthy {
 			log.Println("master is unhealthy!")
-			return c.Master, errors.New("unhealthy master")
+			return &c.Master, errors.New("unhealthy master")
 		}
-		return c.Master, err
+		return &c.Master, err
 	}
 
 	//for now, use a simple random number generator to pick
@@ -237,20 +237,20 @@ func (c *Config) GetNextNode(writeCase bool) (Node, error) {
 		for i := 0; i < len(c.Replicas); i++ {
 			if c.Replicas[i].Healthy {
 				log.Println("picked replica that was healthy")
-				return c.Replicas[i], err
+				return &c.Replicas[i], err
 			}
 		}
 
 		log.Println("no healthy replica found")
 		if c.Master.Healthy {
 			log.Println("master is healthy will use instead of replica!")
-			return c.Master, err
+			return &c.Master, err
 		}
 		log.Println("master is unhealthy and no healthy replica found")
-		return c.Master, errors.New("master and all replicas are unhealthy")
+		return &c.Master, errors.New("master and all replicas are unhealthy")
 	}
 
-	return c.Replicas[myrand], err
+	return &c.Replicas[myrand], err
 }
 
 //give us a random number between min and less than max
@@ -277,7 +277,7 @@ func containsMapValues(m1 map[string]string, m2 map[string]string) bool {
 	return true
 }
 
-func UpdateHealth(node Node, status bool) {
+func UpdateHealth(node *Node, status bool) {
 	var mutex = &sync.Mutex{}
 	mutex.Lock()
 	node.Healthy = status
