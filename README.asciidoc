@@ -127,14 +127,15 @@ This will do the following:
 === PG Client Component
 
 There is a test PostgreSQL client program created when you run the 
-*mocklibpqclient.go* code.  This is a client that sends messages
+*testclient.go* code.  This is a client that sends messages
 to the proxy and will print out the responses from the proxy.
 
-Run the mock pg client like this:
+Run the test pg client like this:
 ....
-cd mockpgclient
-go run mocklibpqclient.go localhost:5432 onerow
+cd testclient
+./run-test-proxy.sh
 ....
+
 
 === Proxy Administration
 
