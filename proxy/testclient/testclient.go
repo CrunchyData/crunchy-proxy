@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -36,6 +37,10 @@ func main() {
 	if conn != nil {
 		log.Println("conn is not nil")
 	}
+
+	log.Println("execution starts")
+	var startTime = time.Now()
+
 	switch rows {
 	case "onerow":
 		OneRow(conn)
@@ -45,6 +50,10 @@ func main() {
 		break
 	}
 
+	log.Println("execution ends")
+	var endTime = time.Since(startTime)
+	log.Printf("Duration %s\n", endTime)
+
 	conn.Close()
 	os.Exit(0)
 
@@ -52,7 +61,7 @@ func main() {
 
 func OneRow(conn *sql.DB) {
 	var timestamp string
-	err := conn.QueryRow("select text(now())").Scan(&timestamp)
+	err := conn.QueryRow("select /*read */ text(now())").Scan(&timestamp)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Println("no rows returned")
@@ -64,7 +73,7 @@ func OneRow(conn *sql.DB) {
 }
 func TwoRows(conn *sql.DB) {
 	var timestamp string
-	rows, err := conn.Query("select text(generate_series(1,2))")
+	rows, err := conn.Query("select /* read */ text(generate_series(1,2))")
 	defer rows.Close()
 
 	for rows.Next() {

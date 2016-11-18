@@ -20,7 +20,6 @@ import (
 	"github.com/crunchydata/crunchy-proxy/proxy/config"
 	"log"
 	"net/http"
-	"strconv"
 )
 
 const DEFAULT_ADMIN_IPADDR = ":10000"
@@ -61,15 +60,36 @@ func GetConfig(w rest.ResponseWriter, r *rest.Request) {
 	w.WriteJson(globalconfig)
 	log.Println("adminserver: GetConfig report written")
 }
+
+type AdminStatsNode struct {
+	IPAddr  string `json:"ipaddr"`
+	Healthy bool   `json:"healthy"`
+	Reads   int    `json:"reads"`
+	Writes  int    `json:"writes"`
+}
+
+type AdminStats struct {
+	Nodes []AdminStatsNode `json:"nodes"`
+}
+
 func GetStats(w rest.ResponseWriter, r *rest.Request) {
 	log.Println("adminserver: GetStats called")
 
-	var somecontent = "something goes here"
-	var thing http.ResponseWriter
-	thing = w.(http.ResponseWriter)
+	stats := AdminStats{}
+	stats.Nodes = make([]AdminStatsNode, 1+len(globalconfig.Replicas))
+	stats.Nodes[0].IPAddr = globalconfig.Master.IPAddr
+	stats.Nodes[0].Reads = globalconfig.Master.Stats.Reads
+	stats.Nodes[0].Writes = globalconfig.Master.Stats.Writes
+	stats.Nodes[0].Healthy = globalconfig.Master.Healthy
 
-	thing.Header().Set("Content-Type", "text/html")
-	thing.Header().Set("Content-Length", strconv.Itoa(len(somecontent)))
-	thing.Write([]byte(somecontent))
+	for i := 1; i < len(globalconfig.Replicas)+1; i++ {
+		stats.Nodes[i].IPAddr = globalconfig.Replicas[i-1].IPAddr
+		stats.Nodes[i].Reads = globalconfig.Replicas[i-1].Stats.Reads
+		stats.Nodes[i].Writes = globalconfig.Replicas[i-1].Stats.Writes
+		stats.Nodes[i].Healthy = globalconfig.Replicas[i-1].Healthy
+	}
+
+	w.Header().Set("Content-Type", "text/json")
+	w.WriteJson(&stats)
 	log.Println("adminserver: GetStatus report written")
 }

@@ -14,10 +14,16 @@ import (
 	"time"
 )
 
+type NodeStats struct {
+	Reads  int `json:"-"`
+	Writes int `json:"-"`
+}
+
 type NodePool struct {
 	Channel     chan int       `json:"-"`
 	Connections []*net.TCPConn `json:"-"`
 }
+
 type PoolConfig struct {
 	Enabled  bool `json:"enabled"`
 	Capacity int  `json:"capacity"`
@@ -41,6 +47,7 @@ type Node struct {
 	TCPAddr      *net.TCPAddr      `json:"-"`
 	TCPConn      *net.TCPConn      `json:"-"`
 	Pool         NodePool          `json:"-"`
+	Stats        NodeStats         `json:"-"`
 }
 
 type Config struct {
