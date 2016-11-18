@@ -57,12 +57,14 @@ func IsWriteAnno(buf []byte) bool {
 	log.Printf("IsWrite: msglen=%d query=%s\n", msgLen, query)
 
 	querybuf := buf[5:msgLen]
-	startPos := bytes.Index(buf, START) + 5
-	endPos := bytes.Index(buf, END) + 5
+	startPos := bytes.Index(buf, START)
+	endPos := bytes.Index(buf, END)
 	if startPos < 0 || endPos < 0 {
 		log.Println("no comment found..assuming write case")
 		return true
 	}
+	startPos = startPos + 5 //add 5 for msg header length
+	endPos = endPos + 5     //add 5 for msg header length
 
 	comment := buf[bytes.Index(querybuf, START)+2+5 : bytes.Index(querybuf, END)+5]
 	log.Printf("comment=[%s]\n", string(comment))

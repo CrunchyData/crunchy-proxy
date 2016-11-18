@@ -96,17 +96,17 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			writeCase = IsWriteAnno(masterBuf)
 			if writeCase {
 				backendConn = cfg.Master.TCPConn
-				cfg.Master.Stats.Writes = cfg.Master.Stats.Writes + 1
+				cfg.Master.Stats.Queries = cfg.Master.Stats.Queries + 1
 				log.Printf("query writeCase sending to %s\n", cfg.Master.IPAddr)
-				log.Println("+++++++++++incrementing writes=%d\n", cfg.Master.Stats.Writes)
+				log.Println("+++++++++++incrementing writes=%d\n", cfg.Master.Stats.Queries)
 			} else {
 				nextNode, err = cfg.GetNextNode(writeCase)
 				if err != nil {
 					log.Println(err.Error())
 					return
 				}
-				log.Println("+++++++++++incrementing reads=%d\n", nextNode.Stats.Reads)
-				nextNode.Stats.Reads = nextNode.Stats.Reads + 1
+				log.Println("+++++++++++incrementing reads=%d\n", nextNode.Stats.Queries)
+				nextNode.Stats.Queries = nextNode.Stats.Queries + 1
 				//get pool index from pool channel
 				poolIndex = <-nextNode.Pool.Channel
 

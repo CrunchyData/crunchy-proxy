@@ -15,8 +15,7 @@ import (
 )
 
 type NodeStats struct {
-	Reads  int `json:"-"`
-	Writes int `json:"-"`
+	Queries int `json:"-"`
 }
 
 type NodePool struct {

@@ -64,8 +64,7 @@ func GetConfig(w rest.ResponseWriter, r *rest.Request) {
 type AdminStatsNode struct {
 	IPAddr  string `json:"ipaddr"`
 	Healthy bool   `json:"healthy"`
-	Reads   int    `json:"reads"`
-	Writes  int    `json:"writes"`
+	Queries int    `json:"queries"`
 }
 
 type AdminStats struct {
@@ -78,14 +77,12 @@ func GetStats(w rest.ResponseWriter, r *rest.Request) {
 	stats := AdminStats{}
 	stats.Nodes = make([]AdminStatsNode, 1+len(globalconfig.Replicas))
 	stats.Nodes[0].IPAddr = globalconfig.Master.IPAddr
-	stats.Nodes[0].Reads = globalconfig.Master.Stats.Reads
-	stats.Nodes[0].Writes = globalconfig.Master.Stats.Writes
+	stats.Nodes[0].Queries = globalconfig.Master.Stats.Queries
 	stats.Nodes[0].Healthy = globalconfig.Master.Healthy
 
 	for i := 1; i < len(globalconfig.Replicas)+1; i++ {
 		stats.Nodes[i].IPAddr = globalconfig.Replicas[i-1].IPAddr
-		stats.Nodes[i].Reads = globalconfig.Replicas[i-1].Stats.Reads
-		stats.Nodes[i].Writes = globalconfig.Replicas[i-1].Stats.Writes
+		stats.Nodes[i].Queries = globalconfig.Replicas[i-1].Stats.Queries
 		stats.Nodes[i].Healthy = globalconfig.Replicas[i-1].Healthy
 	}
 
