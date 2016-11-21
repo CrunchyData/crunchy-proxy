@@ -18,20 +18,28 @@ func SetupPools(c *config.Config) {
 	}
 
 	log.Println("[pool] pooling enabled")
-	var err error
 
 	for i := 0; i < len(c.Replicas); i++ {
-		c.Replicas[i].Pool.Channel = make(chan int, c.Pool.Capacity)
-		c.Replicas[i].Pool.Connections = make([]*net.TCPConn, c.Pool.Capacity)
-		for j := 0; j < c.Pool.Capacity; j++ {
-			c.Replicas[i].Pool.Channel <- j
-			//add a connection to the node pool
-			log.Printf("[pool] adding conn to replica %s pool\n", c.Replicas[i].IPAddr)
-			c.Replicas[i].Pool.Connections[j], err = c.Replicas[i].GetConnection()
-			if err != nil {
-				log.Println("error in getting pool conn for replica " + err.Error())
-			}
-			Authenticate(c, c.Replicas[i], c.Replicas[i].Pool.Connections[j])
+		setupPoolForNode(c, &c.Replicas[i])
+	}
+
+	setupPoolForNode(c, &c.Master)
+
+}
+
+func setupPoolForNode(c *config.Config, node *config.Node) {
+	var err error
+
+	node.Pool.Channel = make(chan int, c.Pool.Capacity)
+	node.Pool.Connections = make([]*net.TCPConn, c.Pool.Capacity)
+	for j := 0; j < c.Pool.Capacity; j++ {
+		node.Pool.Channel <- j
+		//add a connection to the node pool
+		log.Printf("[pool] adding conn to node %s pool\n", node.IPAddr)
+		node.Pool.Connections[j], err = node.GetConnection()
+		if err != nil {
+			log.Println("error in getting pool conn for node " + err.Error())
 		}
+		Authenticate(c, node, node.Pool.Connections[j])
 	}
 }

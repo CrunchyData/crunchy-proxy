@@ -215,7 +215,7 @@ func md5s(s string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func Authenticate(cfg *config.Config, node config.Node, conn *net.TCPConn) {
+func Authenticate(cfg *config.Config, node *config.Node, conn *net.TCPConn) {
 	var readLen, writeLen int
 	var err error
 	var buf []byte
@@ -298,7 +298,7 @@ func getPasswordMessage(salt []byte, username string, password string) []byte {
 
 }
 
-func getStartupMessage(cfg *config.Config, node config.Node) []byte {
+func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 
 	//send startup packet
 	var buffer []byte
