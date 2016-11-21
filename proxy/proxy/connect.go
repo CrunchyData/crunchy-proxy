@@ -127,7 +127,7 @@ func connect(cfg *config.Config, client net.Conn) error {
 		return err
 	}
 
-	log.Println("end of connect logic")
+	log.Println("end of connect logic..sending terminate")
 
 	//after authenticating to the master, we terminate this connection
 	//will use pool connections for the rest of the user session
