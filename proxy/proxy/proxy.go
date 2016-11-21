@@ -49,16 +49,19 @@ func handleListener(config *config.Config, listener net.Listener) {
 func handleClient(cfg *config.Config, client net.Conn) {
 	log.Println("[proxy] handleClient start")
 
-	connect(cfg, client)
+	err := connect(cfg, client)
+	if err != nil {
+		log.Println("FATAL: client could not authenticate and connect")
+		return
+	}
 
 	defer client.Close()
+
 	masterBuf := make([]byte, 4096)
-	replicaBuf := make([]byte, 4096)
 	var writeLen int
 	var readLen int
 	var msgType string
 	var writeCase = false
-	var err error
 	var reqLen int
 	var nextNode *config.Node
 	var backendConn *net.TCPConn
@@ -85,8 +88,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		//return
 		//}
 
-		//todo still needed?
-		copy(replicaBuf, masterBuf)
+		//copy(replicaBuf, masterBuf)
 
 		if msgType == "X" {
 			log.Println("termination msg received")
@@ -94,25 +96,18 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		} else if msgType == "Q" {
 			poolIndex = -1
 			writeCase = IsWriteAnno(masterBuf)
-			if writeCase {
-				backendConn = cfg.Master.TCPConn
-				cfg.Master.Stats.Queries = cfg.Master.Stats.Queries + 1
-				log.Printf("query writeCase sending to %s\n", cfg.Master.IPAddr)
-				log.Println("+++++++++++incrementing writes=%d\n", cfg.Master.Stats.Queries)
-			} else {
-				nextNode, err = cfg.GetNextNode(writeCase)
-				if err != nil {
-					log.Println(err.Error())
-					return
-				}
-				log.Println("+++++++++++incrementing reads=%d\n", nextNode.Stats.Queries)
-				nextNode.Stats.Queries = nextNode.Stats.Queries + 1
-				//get pool index from pool channel
-				poolIndex = <-nextNode.Pool.Channel
-
-				log.Printf("query readCase sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
-				backendConn = nextNode.Pool.Connections[poolIndex]
+			nextNode, err = cfg.GetNextNode(writeCase)
+			if err != nil {
+				log.Println(err.Error())
+				return
 			}
+			//get pool index from pool channel
+			poolIndex = <-nextNode.Pool.Channel
+
+			log.Printf("query sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
+			backendConn = nextNode.Pool.Connections[poolIndex]
+
+			nextNode.Stats.Queries = nextNode.Stats.Queries + 1
 
 			writeLen, err = backendConn.Write(masterBuf[:reqLen])
 			log.Printf("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)

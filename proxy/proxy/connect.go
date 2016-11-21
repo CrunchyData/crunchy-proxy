@@ -22,7 +22,7 @@ import (
 	"net"
 )
 
-func connect(cfg *config.Config, client net.Conn) {
+func connect(cfg *config.Config, client net.Conn) error {
 	log.Println("[proxy] connect start")
 
 	cfg.GetAllConnections()
@@ -37,7 +37,7 @@ func connect(cfg *config.Config, client net.Conn) {
 	clientLen, err = client.Read(masterBuf)
 	if err != nil {
 		log.Println("[proxy] error reading from client conn" + err.Error())
-		return
+		return err
 	}
 	thelen := binary.BigEndian.Uint32(masterBuf[:4])
 	theprotocol := binary.BigEndian.Uint32(masterBuf[4:8])
@@ -64,13 +64,13 @@ func connect(cfg *config.Config, client net.Conn) {
 		_, err = client.Write(masterBuf[:masterReadLen])
 		if err != nil {
 			log.Println("[proxy] closing client conn" + err.Error())
-			return
+			return err
 		}
 		log.Println("read client response after N was sent")
 		clientLen, err = client.Read(masterBuf)
 		if err != nil {
 			log.Println("[proxy] error reading from client conn" + err.Error())
-			return
+			return err
 		}
 
 		//write client response to master
@@ -82,6 +82,7 @@ func connect(cfg *config.Config, client net.Conn) {
 		msgType = ProtocolMsgType(masterBuf)
 
 		log.Println("read from master after N msgType=" + msgType)
+
 	}
 
 	//
@@ -93,14 +94,14 @@ func connect(cfg *config.Config, client net.Conn) {
 	_, err = client.Write(masterBuf[:masterReadLen])
 	if err != nil {
 		log.Println("[proxy] closing client conn" + err.Error())
-		return
+		return err
 	}
 
 	log.Println("read client response after R was sent")
 	clientLen, err = client.Read(masterBuf)
 	if err != nil {
 		log.Println("[proxy] error reading from client conn" + err.Error())
-		return
+		return err
 	}
 
 	LogProtocol("-->", "master", masterBuf, clientLen)
@@ -123,9 +124,19 @@ func connect(cfg *config.Config, client net.Conn) {
 	_, err = client.Write(masterBuf[:masterReadLen])
 	if err != nil {
 		log.Println("[proxy] closing client conn" + err.Error())
-		return
+		return err
 	}
 
 	log.Println("end of connect logic")
+
+	//after authenticating to the master, we terminate this connection
+	//will use pool connections for the rest of the user session
+	termMsg := GetTerminateMessage()
+	masterReadLen, err = cfg.Master.TCPConn.Write(termMsg)
+	if err != nil {
+		log.Println("master WriteRead error on term msg:" + err.Error())
+	}
+
+	return nil
 
 }

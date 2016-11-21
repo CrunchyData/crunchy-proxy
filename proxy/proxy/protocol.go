@@ -185,6 +185,16 @@ func TerminateMessage(buf []byte) {
 	//query = string(buf[5:msgLen])
 	//log.Printf("[protocol] RowDescription: msglen=%d query=%s\n", msgLen, query)
 }
+func GetTerminateMessage() []byte {
+	var buffer []byte
+	buffer = append(buffer, 'X')
+
+	//make msg len 1 for now
+	x := make([]byte, 4)
+	binary.BigEndian.PutUint32(x, uint32(4))
+	buffer = append(buffer, x...)
+	return buffer
+}
 func PasswordMessage(buf []byte) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
