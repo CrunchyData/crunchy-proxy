@@ -1,12 +1,12 @@
 {
-	"ImportPath": "github.com/crunchydata/crunchy-proxy/proxy",
+	"ImportPath": "github.com/crunchydata/crunchy-proxy",
 	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Packages": [
 		"github.com/crunchydata/crunchy-proxy/proxy",
-		"github.com/crunchydata/crunchy-proxy/proxy/admin",
-		"github.com/crunchydata/crunchy-proxy/proxy/adapter",
-		"github.com/crunchydata/crunchy-proxy/proxy/config"
+		"github.com/crunchydata/crunchy-proxy/admin",
+		"github.com/crunchydata/crunchy-proxy/adapter",
+		"github.com/crunchydata/crunchy-proxy/config"
 	],
 	"Deps": [
 		{

@@ -17,7 +17,7 @@ package proxy
 
 import (
 	"encoding/binary"
-	"github.com/crunchydata/crunchy-proxy/proxy/config"
+	"github.com/crunchydata/crunchy-proxy/config"
 	"log"
 	"net"
 )

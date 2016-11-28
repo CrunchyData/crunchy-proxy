@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"github.com/crunchydata/crunchy-proxy/proxy/config"
+	"github.com/crunchydata/crunchy-proxy/config"
 	"log"
 	"net"
 )

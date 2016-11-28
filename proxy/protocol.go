@@ -20,7 +20,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"github.com/crunchydata/crunchy-proxy/proxy/config"
+	"github.com/crunchydata/crunchy-proxy/config"
 	"log"
 	"net"
 )

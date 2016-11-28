@@ -17,7 +17,7 @@ package admin
 
 import (
 	"github.com/ant0ine/go-json-rest/rest"
-	"github.com/crunchydata/crunchy-proxy/proxy/config"
+	"github.com/crunchydata/crunchy-proxy/config"
 	"log"
 	"net/http"
 )

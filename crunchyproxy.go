@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/crunchydata/crunchy-proxy/proxy/admin"
-	"github.com/crunchydata/crunchy-proxy/proxy/config"
-	"github.com/crunchydata/crunchy-proxy/proxy/proxy"
+	"github.com/crunchydata/crunchy-proxy/admin"
+	"github.com/crunchydata/crunchy-proxy/config"
+	"github.com/crunchydata/crunchy-proxy/proxy"
 	"log"
 )
 

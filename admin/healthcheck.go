@@ -3,7 +3,7 @@ package admin
 import (
 	"database/sql"
 	"fmt"
-	"github.com/crunchydata/crunchy-proxy/proxy/config"
+	"github.com/crunchydata/crunchy-proxy/config"
 	_ "github.com/lib/pq"
 	"log"
 	"strings"

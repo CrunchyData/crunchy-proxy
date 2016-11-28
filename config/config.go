@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"github.com/crunchydata/crunchy-proxy/proxy/adapter"
+	"github.com/crunchydata/crunchy-proxy/adapter"
 	"io/ioutil"
 	"log"
 	"math/rand"
