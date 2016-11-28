@@ -1,7 +1,7 @@
 = User Guide - Crunchy Proxy
 Crunchy Data Solutions, Inc.
 v0.0.1, {docdate}
-image::crunchy_logo.png?raw=true[]
+image::crunchy_logo.png
 
 == Project
 
@@ -10,7 +10,7 @@ client application would connect to the proxy which appears as any other
 PostgreSQL database connection.  The proxy would accept the inbound client
 requests, and route them to an appropriate PostgreSQL cluster member.
 
-image::proxy-golang.png?raw=true[]
+image::proxy-golang.png
 
 
 To the PostgreSQL server, the proxy is transparent and appears as any other

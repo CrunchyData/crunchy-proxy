@@ -10,7 +10,7 @@ gendeps:
 	github.com/crunchydata/crunchy-proxy/adapter \
 	github.com/crunchydata/crunchy-proxy/config 
 
-docs:
+docsbuild:
 	cd docs && ./build-docs.sh
 clean:
 	rm -rf $(GOPATH)/pkg/* $(GOPATH)/bin/*
