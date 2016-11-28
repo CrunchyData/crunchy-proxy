@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="generator" content="AsciiDoc 8.6.8, bootstrap backend 4.5.0">
+    <title>User Guide - Crunchy Proxy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Crunchy Data Solutions, Inc.">
+    <!-- AsciiDoc Bootstrap styles -->
+    <link rel="stylesheet" type="text/css" id="bootstrapTheme" href="./stylesheets/asciidoc-bootstrap.min.css">
+    <!-- Back to top (jquery plugin) -->
+    <link rel="stylesheet" type="text/css" href="./stylesheets/ui.totop.css">
+
+    <!--[if (lt IE 9) & (!IEMobile)]>
+        <script src="./javascripts/html5shiv.min.js"></script>
+        <script src="./javascripts/respond.min.js"></script>
+    <![endif]-->
+
+  </head>
+  <body id="toc-top">
+    <div id="page">
+
+
+      <div class="jumbotron">
+        <div class="container">
+          <h1>User Guide - Crunchy Proxy</h1>
+        </div>
+      </div>
+
+  <div id="content" class="container">
+
+    <div class="row">
+
+
+
+
+        <div class="col-md-9" role="main">
+<div class="imageblock">
+<div class="content">
+<img src="crunchy_logo.png?raw=true" alt="crunchy_logo.png?raw=true">
+</div>
+</div>
+<div class="section">
+    <h1 class="page-header" id="project">1. Project</h1>
+<div class="paragraph"><p>crunchy-proxy is an experimental PostgreSQL-aware proxy used to intelligently handle PostgreSQL application requests.  In the diagram below, a PostgreSQL
+client application would connect to the proxy which appears as any other
+PostgreSQL database connection.  The proxy would accept the inbound client
+requests, and route them to an appropriate PostgreSQL cluster member.</p></div>
+<div class="imageblock">
+<div class="content">
+<img src="proxy-golang.png?raw=true" alt="proxy-golang.png?raw=true">
+</div>
+</div>
+<div class="paragraph"><p>To the PostgreSQL server, the proxy is transparent and appears as any other
+PostgreSQL client would appear.  Within the proxy, various features are
+found including:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+ability to configure a proxy configuration via a JSON configuration file
+</p>
+</li>
+<li>
+<p>
+ability to perform a PostgreSQL healthcheck on each configured  PostgreSQL
+   server instance
+</p>
+</li>
+<li>
+<p>
+ability to route inbound client messages based on the health of PostgreSQL
+</p>
+</li>
+<li>
+<p>
+ability to route messages based on the SQL command type, writes are
+   sent to a master and reads are sent to replicas in a round-robin fashion
+</p>
+</li>
+<li>
+<p>
+ability to provide a REST admin interface
+</p>
+</li>
+<li>
+<p>
+ability to publish healthcheck events to consumers outside of the proxy
+</p>
+</li>
+</ul></div>
+</div>
+<div class="section">
+    <h1 class="page-header" id="installation_instructions">2. Installation Instructions</h1>
+<div class="paragraph"><p>Setting up a golang project requires the following
+directory structure be created:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>sudo yum -y install golang
+mkdir -p gdev/src gdev/pkg gdev/bin
+export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin
+export PATH=$GOPATH:$PATH
+cd gdev/src
+go get github.com/tools/godep
+mkdir github.com/crunchydata
+cd github.com/crunchydata
+git clone git@github.com:CrunchyData/crunchy-proxy.git
+cd crunchy-proxy
+cd proxy
+godep restore</pre>
+</div></div>
+</div>
+<div class="section">
+    <h1 class="page-header" id="design">3. Design</h1>
+<div class="paragraph"><p>The example shows a message traveling down this path:</p></div>
+<div class="paragraph"><p><strong>pg client&#8594;proxy&#8594;pg server&#8594;proxy&#8594;pg client</strong></p></div>
+<div class="paragraph"><p>Lets describe each component and show how to run the test&#8230;</p></div>
+<h2 id="postgres_cluster">3.1. Postgres Cluster</h2>
+<div class="paragraph"><p>Start up a PostgreSQL cluster (master and replica) to test with.  This
+is done by running a pair of PostgreSQL containers that form a replicating
+cluster.</p></div>
+<div class="paragraph"><p>This requires you install Docker on your dev box!  You can do this on
+centos7 with this:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>sudo yum -y install docker
+sudo group add docker
+sudo usermod -a -g docker youruserid
+sudo systemctl enable docker.service
+sudo systemctl start docker.service
+exit</pre>
+</div></div>
+<div class="paragraph"><p>After logging back into a new terminal, you should be able to
+perform the following:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>cd proxy/pgcontainer
+./run-cluster.sh
+docker ps</pre>
+</div></div>
+<div class="paragraph"><p>If all has worked, you should see 2 Docker containers running, these
+make up a 2 node PostgreSQL cluster you will test against.</p></div>
+<div class="paragraph"><p>This will start a Postgres 9.5 master container that listens on
+<strong>localhost:12000</strong> and a replica container that listens on <strong>localhost:12002</strong></p></div>
+<div class="paragraph"><p>The PostgreSQL user id is <strong>postgres</strong>, the password is <strong>password</strong>, and you
+would connect to these container database like this using psql:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>psql -h 127.0.0.1 -p 12000 -U postgres postgres
+psql -h 127.0.0.1 -p 12002 -U postgres postgres</pre>
+</div></div>
+<div class="paragraph"><p>Stop the containers like this:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>docker stop master
+docker stop replica</pre>
+</div></div>
+<div class="paragraph"><p>Start the containers like this:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>docker start master
+docker start replica</pre>
+</div></div>
+<h2 id="proxy_component">3.2. Proxy Component</h2>
+<div class="paragraph"><p>There is a proxy component created when you run the <strong>main.go</strong>
+code.  This component accepts PostgreSQL client connections and routes
+client messages to one of the PostgreSQL containers.</p></div>
+<div class="paragraph"><p>Start it like this:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>cd proxy
+go run main.go -config=config.json</pre>
+</div></div>
+<div class="paragraph"><p>This will do the following:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+start an admin service on localhost:10000
+</p>
+</li>
+<li>
+<p>
+listen on localhost:5432 for client requests
+</p>
+</li>
+<li>
+<p>
+read config.json and set up a runtime configuration
+</p>
+</li>
+<li>
+<p>
+route any client messages to the PostgreSQL containers
+</p>
+</li>
+</ul></div>
+<h2 id="pg_client_component">3.3. PG Client Component</h2>
+<div class="paragraph"><p>There is a test PostgreSQL client program created when you run the
+<strong>testclient.go</strong> code.  This is a client that sends messages
+to the proxy and will print out the responses from the proxy.</p></div>
+<div class="paragraph"><p>Run the test pg client like this:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>cd testclient
+./run-test-proxy.sh</pre>
+</div></div>
+<h2 id="proxy_administration">3.4. Proxy Administration</h2>
+<div class="paragraph"><p>There is an administration port created by the proxy that you
+can interact with to gain status from the proxy.</p></div>
+<h3 id="events">3.4.1. Events</h3>
+<div class="paragraph"><p>Events like a healthcheck status are published to any subscribers
+using a streaming REST API, you can access the admin events
+as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>curl -i http://localhost:10000/api/stream</pre>
+</div></div>
+<div class="paragraph"><p>As the proxy publishes events, your REST client (e.g. curl) will receive
+the events.</p></div>
+<h3 id="configuration">3.4.2. Configuration</h3>
+<div class="paragraph"><p>You can get the current configuration of the proxy as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>curl http://localhost:10000/api/config</pre>
+</div></div>
+<h3 id="statistics">3.4.3. Statistics</h3>
+<div class="paragraph"><p>You can get the current statistics of the proxy as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>curl http://localhost:10000/api/stats</pre>
+</div></div>
+<h3 id="configuration_2">3.4.4. Configuration</h3>
+<div class="paragraph"><p>Configuration of the proxy is determined by a JSON configuration
+file that is input to the proxy.  The configuration
+file is read at startup of the proxy.</p></div>
+<div class="paragraph"><p>The structures defined in <strong>config/config.go</strong> define the content
+of the JSON configuration.</p></div>
+</div>
+<div class="section">
+    <h1 class="page-header" id="legal_notices">4. Legal Notices</h1>
+<div class="paragraph"><p>Copyright © 2016 Crunchy Data Solutions, Inc.</p></div>
+<div class="paragraph"><p>CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</p></div>
+<div class="paragraph"><p>Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks of Crunchy Data Solutions, Inc.</p></div>
+</div>
+        </div>  <!-- /.col-md-9 -->
+        <div class="col-md-3">
+        <div id="sidebar">
+    <div class="toc2">
+<div class="panel panel-default">
+<div class="panel-heading">Table of Contents</div>
+<div class="panel-body" id="toc">
+</div>
+</div>
+    </div>
+</div>
+        </div>  <!-- /.col-md-3 -->
+    </div>  <!-- /.row -->
+
+  </div>  <!-- /.container -->
+
+    <footer id="footer" role="contentinfo">
+        <div class="container">
+<div class="row"><div id="footnotes"></div></div>
+        <table>
+        <tr>
+        <td><b>Crunchy Data Solutions, Inc.</b></td>
+        <td>v1.0.3</td>
+        <td>February 27, 2016</td>
+        </tr>
+        </table>
+        </div>
+    </footer>
+
+    <script src="./javascripts/jquery.min.js"></script>
+    <script src="./bootstrap/js/bootstrap.min.js"></script>
+    <script src="./javascripts/asciidoc.js"></script>
+    <!-- Install TOC and/or footnotes (if necessary) -->
+    <script type="text/javascript">asciidoc.install(2);</script>
+
+    <script src="./javascripts/jquery.ui.totop.min.js"></script>
+
+
+
+    <!-- Remove footnotes if empty block -->
+    <script type="text/javascript">$(function(){ if ($("#footnotes div").length == 0) $("#footnotes").parent().remove(); });</script>
+
+    <script type="text/javascript">$(function(){ if ($("#dropdown-menu-versions")) $("#dropdown-menu-versions").parent().remove(); });</script>
+
+    <script type="text/javascript">$(function(){ $().UItoTop(); });</script>
+    </div> <!-- page -->
+  </body>
+</html>
