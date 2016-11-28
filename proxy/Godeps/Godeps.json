@@ -1,7 +1,13 @@
 {
-	"ImportPath": "github.com/crunchydata/crunchy-proxy/proxy-golang",
-	"GoVersion": "go1.6",
+	"ImportPath": "github.com/crunchydata/crunchy-proxy/proxy",
+	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
+	"Packages": [
+		"github.com/crunchydata/crunchy-proxy/proxy",
+		"github.com/crunchydata/crunchy-proxy/proxy/admin",
+		"github.com/crunchydata/crunchy-proxy/proxy/adapter",
+		"github.com/crunchydata/crunchy-proxy/proxy/config"
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/ant0ine/go-json-rest/rest",
