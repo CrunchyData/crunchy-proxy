@@ -10,7 +10,7 @@ client application would connect to the proxy which appears as any other
 PostgreSQL database connection.  The proxy would accept the inbound client
 requests, and route them to an appropriate PostgreSQL cluster member.
 
-image::docs/proxy-golang.png?raw=true[]
+image::docs/proxy-diagram.svg?raw=true[]
 
 To the PostgreSQL server, the proxy is transparent and appears as any other
 PostgreSQL client would appear.  Within the proxy, various capabilities are
@@ -70,7 +70,8 @@ they can use the *crunchy-proxy* for SQL routing.  Our estimate is that
 most users do indeed have access to their SQL source code and understand
 it enough to place the annotation.
 
-The upside of this design choice is twofold:
+The upside of this design choice includes:
+
  * much simpler proxy parsing implementation
  * huge increase in proxy throughput
  * better routing accuracy
@@ -78,9 +79,13 @@ The upside of this design choice is twofold:
 == Performance
 
 Comparing the throughtput of *crunchy-proxy* to pgpool, the performance
-gains are promising:
+gains are promising, here is chart that shows the time it takes
+to proxy 100 very small SQL statements (e.g. select /* read */ now()):
 
 image::docs/proxy-performance.png?raw=true[]
+
+Interestingly, with this design approach, as the size of your SQL statement
+grows, the performance gains increase.  
 
 == Execution
 
