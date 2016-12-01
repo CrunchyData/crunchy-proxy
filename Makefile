@@ -27,6 +27,8 @@ push:
 	./bin/push-to-dockerhub.sh
 default:
 	make proxybin
+run:
+	go run crunchyproxy.go -config=config.json
 test:
 	cd tests && go test; /usr/bin/test "$$?" -eq 0
 
