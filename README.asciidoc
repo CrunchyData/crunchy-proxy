@@ -10,7 +10,7 @@ client application would connect to the proxy which appears as any other
 PostgreSQL database connection.  The proxy would accept the inbound client
 requests, and route them to an appropriate PostgreSQL cluster member.
 
-image::docs/proxy-diagram.svg[]
+image::docs/proxy-diagram.svg?raw=true[]
 
 To the PostgreSQL server, the proxy is transparent and appears as any other
 PostgreSQL client would appear.  Within the proxy, various capabilities are
