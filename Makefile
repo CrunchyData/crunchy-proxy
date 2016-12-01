@@ -15,8 +15,9 @@ docsbuild:
 clean:
 	rm -rf $(GOPATH)/pkg/* $(GOPATH)/bin/*
 	go get github.com/tools/godep
-image:
-	docker build -t crunchy-proxy -f centos7/Dockerfile .
+dockerimage:
+	cp $(GOBIN)/crunchyproxy bin
+	docker build -t crunchy-proxy -f Dockerfile.centos7 .
 	docker tag crunchy-proxy crunchydata/crunchy-proxy:centos7-0.0.1
 
 proxybin:

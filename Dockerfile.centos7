@@ -1,0 +1,16 @@
+FROM centos:7
+
+LABEL Release="0.0.1" Vendor="Crunchy Data Solutions"
+
+RUN yum -y install openssh-clients  hostname && yum clean all -y
+
+ADD bin/crunchyproxy /usr/bin
+
+VOLUME /config
+
+EXPOSE 5432
+
+USER daemon
+
+CMD ["crunchyproxy","-config=/config/config.json" ]
+
