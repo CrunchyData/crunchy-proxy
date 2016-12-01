@@ -5,183 +5,104 @@ image::docs/crunchy_logo.png?raw=true[]
 
 == Project
 
-crunchy-proxy is an experimental PostgreSQL-aware proxy used to intelligently handle PostgreSQL application requests.  In the diagram below, a PostgreSQL
+*crunchy-proxy* is an experimental PostgreSQL-aware proxy used to handle PostgreSQL application requests.  In the diagram below, a PostgreSQL
 client application would connect to the proxy which appears as any other
 PostgreSQL database connection.  The proxy would accept the inbound client
 requests, and route them to an appropriate PostgreSQL cluster member.
 
 image::docs/proxy-golang.png?raw=true[]
 
-
 To the PostgreSQL server, the proxy is transparent and appears as any other
-PostgreSQL client would appear.  Within the proxy, various features are
+PostgreSQL client would appear.  Within the proxy, various capabilities are
 found including:
 
- * ability to configure a proxy configuration via a JSON configuration file
- * ability to perform a PostgreSQL healthcheck on each configured  PostgreSQL
-   server instance
- * ability to route inbound client messages based on the health of PostgreSQL
- * ability to route messages based on the SQL command type, writes are
+ * route messages based on the SQL command type, writes are
    sent to a master and reads are sent to replicas in a round-robin fashion
- * ability to provide a REST admin interface
- * ability to publish healthcheck events to consumers outside of the proxy
- * ability to load balance SQL statements across multiple replica backends
+ * configuration via JSON file
+ * PostgreSQL healthcheck
+ * route inbound client messages based on the health of PostgreSQL
+ * REST administrative interface
+ * publish healthcheck events to consumers outside of the proxy
+ * load balance SQL statements across multiple replica backends
+ * connection pooling
+
+== Approach
+
+One of the key features of the *crunchy-proxy* is to figure out how
+to route SQL statements to a PostgreSQL cluster members.  This feature
+allows end-user applications to see a PostgreSQL cluster as a single
+connection.  This feature requires some knowledge of the SQL that
+an application sends to PostgreSQL.
+
+One approach (e.g. link:http://www.pgpool.net/mediawiki/index.php/Main_Page[pgpool]) is to parse each SQL statement looking
+for grammar that would imply a *write* or *update* and then send
+those SQL statements to the cluster master.  SQL statements that
+are determined to be *read-only* in nature are safe to send to the
+cluster replica members.  Remember, in PostgreSQL cluster replica 
+members are only able to process SQL that is *read-only* in nature.
+
+For *crunchy-proxy* we have taken a different approach to SQL routing.
+Instead of parsing the entire SQL grammer of each SQL statement, *crunchy-proxy* uses a simple annotation, supplied by the end-user within their SQL
+statement, to determine the routing destination.
+
+For example, the following SQL statement is annotated to indicate it
+is a *read-only* SQL statement:
+....
+/* read */ select now();
+....
+
+Examples of a *write* SQL statement include the following:
+....
+create table boofar (id int);
+drop /* write */ table boofar (id int);
+....
+
+If a SQL statement doesn't include an annotation, the the statement
+is considered a *write* and sent to the master cluster member.
+
+The *crunchy-proxy* parses only the annotation which greatly simplfies
+the problem of determining where to send a SQL statement into a PostgreSQL
+cluster. 
+
+The key tradeoff with this design is whether a user has access to their
+application's SQL and the ability to add the annotation.  If they do, then
+they can use the *crunchy-proxy* for SQL routing.  Our estimate is that
+most users do indeed have access to their SQL source code and understand
+it enough to place the annotation.
+
+The upside of this design choice is twofold:
+ * much simpler proxy parsing implementation
+ * huge increase in proxy throughput
+ * better routing accuracy
 
 == Performance
 
-insert performance notes and graph here
+Comparing the throughtput of *crunchy-proxy* to pgpool, the performance
+gains are promising:
 
+image::docs/proxy-performance.png?raw=true[]
 
-== Installation Instructions
+== Execution
 
-Setting up a golang project requires the following
-directory structure be created:
+The proxy is a golang binary, if you build the binary from source
+you can run it as follows:
 ....
-sudo yum -y install golang 
-mkdir -p gdev/src gdev/pkg gdev/bin
-export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin
-export PATH=$GOPATH:$PATH
-cd gdev/src
-go get github.com/tools/godep
-mkdir github.com/crunchydata
-cd github.com/crunchydata
-git clone git@github.com:CrunchyData/crunchy-proxy.git
-cd crunchy-proxy
-cd proxy
-godep restore
+crunchyproxy -config=config.json
 ....
 
+Instructions on building from source along with a description of the design
+are found in the link:docs/crunchy-proxy-dev-guide.asciidoc[Developer Guide] 
 
-== Design
+For Docker users, you can run the proxy using the 
+link:bin/run-docker.sh[run-docker.sh] script.
 
-The example shows a message traveling down this path:
-
-*pg client->proxy->pg server->proxy->pg client*
-
-
-Lets describe each component and show how to run the test...
-
-=== Postgres Cluster
-
-Start up a PostgreSQL cluster (master and replica) to test with.  This
-is done by running a pair of PostgreSQL containers that form a replicating
-cluster.  
-
-This requires you install Docker on your dev box!  You can do this on 
-centos7 with this:
-....
-sudo yum -y install docker
-sudo group add docker
-sudo usermod -a -g docker youruserid
-sudo systemctl enable docker.service
-sudo systemctl start docker.service
-exit
-....
-
-After logging back into a new terminal, you should be able to 
-perform the following:
-....
-cd proxy/pgcontainer
-./run-cluster.sh
-docker ps
-....
-
-If all has worked, you should see 2 Docker containers running, these
-make up a 2 node PostgreSQL cluster you will test against.
-
-This will start a Postgres 9.5 master container that listens on 
-*localhost:12000* and a replica container that listens on *localhost:12002*
-
-The PostgreSQL user id is *postgres*, the password is *password*, and you
-would connect to these container database like this using psql:
-....
-psql -h 127.0.0.1 -p 12000 -U postgres postgres
-psql -h 127.0.0.1 -p 12002 -U postgres postgres
-....
-
-Stop the containers like this:
-....
-docker stop master
-docker stop replica
-....
-
-Start the containers like this:
-....
-docker start master
-docker start replica
-....
-
-=== Proxy Component
-
-There is a proxy component created when you run the *main.go*
-code.  This component accepts PostgreSQL client connections and routes
-client messages to one of the PostgreSQL containers.
-
-Start it like this:
-....
-cd proxy
-go run main.go -config=config.json
-....
-
-This will do the following:
-
- * start an admin service on localhost:10000
- * listen on localhost:5432 for client requests
- * read config.json and set up a runtime configuration
- * route any client messages to the PostgreSQL containers
-
-=== PG Client Component
-
-There is a test PostgreSQL client program created when you run the 
-*testclient.go* code.  This is a client that sends messages
-to the proxy and will print out the responses from the proxy.
-
-Run the test pg client like this:
-....
-cd testclient
-./run-test-proxy.sh
-....
+The link:docs/crunchy-proxy-user-guide.asciidoc[User Guide] describes the configuration file format along with other usage information.
 
 
-=== Proxy Administration
+== Feedback
 
-There is an administration port created by the proxy that you
-can interact with to gain status from the proxy.  
-
-==== Events 
-
-Events like a healthcheck status are published to any subscribers
-using a streaming REST API, you can access the admin events 
-as follows:
-....
-curl -i http://localhost:10000/api/stream
-....
-
-As the proxy publishes events, your REST client (e.g. curl) will receive
-the events.
-
-==== Configuration
-
-You can get the current configuration of the proxy as follows:
-....
-curl http://localhost:10000/api/config
-....
-
-==== Statistics
-
-You can get the current statistics of the proxy as follows:
-....
-curl http://localhost:10000/api/stats
-....
-
-==== Configuration
-
-Configuration of the proxy is determined by a JSON configuration
-file that is input to the proxy.  The configuration
-file is read at startup of the proxy.
-
-The structures defined in *config/config.go* define the content
-of the JSON configuration.
+If you find a bug, or want to provide feedback on the design and features 
+feel free to create a github issue.  
 
 
 == Legal Notices

@@ -3,7 +3,66 @@ Crunchy Data Solutions, Inc.
 v0.0.1, {docdate}
 image::crunchy_logo.png
 
-== Project
+== Usage
+
+The command syntax of the proxy is as follows:
+
+....
+crunchyproxy -config=config.json
+....
+
+The only command option is the *-config* flag.  This option specifies
+the proxy configuration to use.
+
+== Testing
+
+Included is a script that will start up a PostgreSQL cluster with
+one master and one replica.  The script uses docker so you will need
+to install and configure docker prior as follows (on centos):
+....
+sudo yum -y install docker
+sudo group add docker
+sudo usermod -a -g docker youruserid
+sudo systemctl enable docker.service
+sudo systemctl start docker.service
+....
+
+Make sure to log out and back into a terminal session for the
+docker group permissions to take effect!
+
+
+Run the database script as follows:
+....
+bin/run-cluster.sh
+....
+
+This will start two docker containers that execute the PostgreSQL cluster.
+
+This will start a Postgres 9.5 master container that listens on
+*localhost:12000* and a replica container that listens on *localhost:12002*
+
+The PostgreSQL user id is *postgres*, the password is *password*, and you
+would connect to these container database like this using psql:
+....
+psql -h 127.0.0.1 -p 12000 -U postgres postgres
+psql -h 127.0.0.1 -p 12002 -U postgres postgres
+....
+
+Stop the containers like this:
+....
+docker stop master
+docker stop replica
+....
+
+Start the containers like this:
+....
+docker start master
+docker start replica
+....
+
+
+
+
 
 crunchy-proxy is an experimental PostgreSQL-aware proxy used to intelligently handle PostgreSQL application requests.  In the diagram below, a PostgreSQL
 client application would connect to the proxy which appears as any other
