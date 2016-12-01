@@ -6,19 +6,31 @@ image::crunchy_logo.png?raw=true[]
 == Building
 
 Here are the steps to build the proxy from source, assuming
-an installation directory of $HOME/gdev:
+an installation directory of *$HOME/gdev*:
 ....
-mkdir -p $HOME?gdev/src $HOME/gdev/pkg $HOME/gdev/bin
+mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
 export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN
+....
+
+Install a golang compiler, here is one way:
+....
 sudo yum -y install golang 
+....
+
+Next, go get the source code:
+....
 cd gdev/src
 go get github.com/tools/godep
 mkdir github.com/crunchydata
 cd github.com/crunchydata
 git clone git@github.com:CrunchyData/crunchy-proxy.git
+....
+
+Lastly, build the binary:
+....
 cd crunchy-proxy
-cd proxy
 godep restore
+make
 ....
 
 == Design
@@ -32,7 +44,7 @@ The example shows a message traveling down this path:
 
 Copyright © 2016 Crunchy Data Solutions, Inc.
 
-CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. 
 
 Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks of Crunchy Data Solutions, Inc.
 

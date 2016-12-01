@@ -3,6 +3,8 @@ ifndef BUILDBASE
 	export BUILDBASE=$(GOPATH)/src/github.com/crunchydata/crunchy-proxy
 endif
 
+default:
+	make proxybin
 gendeps:
 	godep save \
 	github.com/crunchydata/crunchy-proxy/proxy \
@@ -26,8 +28,7 @@ all:
 	make proxybin
 push:
 	./bin/push-to-dockerhub.sh
-default:
-	make proxybin
+
 run:
 	go run crunchyproxy.go -config=config.json
 test:
