@@ -1,0 +1,35 @@
+{
+    "Name": "sampleconfig",
+    "IPAddr": "localhost:5432",
+    "AdminIPAddr": "localhost:10000",
+    "healthcheck": {
+        "delay": 60,
+        "query": "select now()"
+    },
+    "pool": {
+        "enabled": true,
+        "capacity": 2
+    },
+    "credentials": {
+        "username": "postgres",
+        "password": "password",
+        "database": "postgres"
+    },
+    "Adapters": [
+        "logging"
+    ],
+    "Master": {
+        "IPAddr": "master:5432",
+        "metadata": {
+            "cpu": "large",
+            "disk": "fast"
+        }
+    },
+    "Replicas": [{
+        "IPAddr": "replica:5432",
+        "metadata": {
+            "cpu": "small",
+            "disk": "slow"
+        }
+    }]
+}
