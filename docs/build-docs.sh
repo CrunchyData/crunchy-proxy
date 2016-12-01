@@ -16,13 +16,13 @@
 asciidoc \
 -b bootstrap \
 -f ./demo.conf \
--o ./htmldoc/crunchy-proxy-design.html \
+-o ./htmldoc/crunchy-proxy-dev-guide.html \
 -a toc2 \
 -a footer \
 -a toc-placement=right \
-./crunchy-proxy-design.asciidoc
+./crunchy-proxy-dev-guide.asciidoc
 
-asciidoctor-pdf ./crunchy-proxy-design.asciidoc --out-file ./pdf/crunchy-proxy-design.pdf
+asciidoctor-pdf ./crunchy-proxy-dev-guide.asciidoc --out-file ./pdf/crunchy-proxy-dev-guide.pdf
 
 asciidoc \
 -b bootstrap \

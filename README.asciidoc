@@ -25,6 +25,12 @@ found including:
    sent to a master and reads are sent to replicas in a round-robin fashion
  * ability to provide a REST admin interface
  * ability to publish healthcheck events to consumers outside of the proxy
+ * ability to load balance SQL statements across multiple replica backends
+
+== Performance
+
+insert performance notes and graph here
+
 
 == Installation Instructions
 
