@@ -14,6 +14,16 @@ crunchyproxy -config=config.json
 The only command option is the *-config* flag.  This option specifies
 the proxy configuration to use.
 
+The proxy uses link:https://godoc.org/github.com/golang/glog[glog] for logging, to see the log output, run the proxy with this command:
+....
+crunchyproxy -config=config.json -logtostderr=true
+....
+
+Increase the logging level this way:
+....
+crunchyproxy -config=config.json -logtostderr=true -v 2
+....
+
 == Configuration
 
 The proxy configuration is controlled by a single configuration file which

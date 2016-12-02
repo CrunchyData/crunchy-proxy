@@ -18,7 +18,7 @@ package admin
 import (
 	"github.com/ant0ine/go-json-rest/rest"
 	"github.com/crunchydata/crunchy-proxy/config"
-	"log"
+	"github.com/golang/glog"
 	"net/http"
 )
 
@@ -29,11 +29,11 @@ var globalconfig *config.Config
 func Initialize(config *config.Config) {
 
 	var ipaddr = DEFAULT_ADMIN_IPADDR
-	log.Println("config.AdminIPAddr is [" + config.AdminIPAddr + "]")
+	glog.V(2).Infoln("config.AdminIPAddr is [" + config.AdminIPAddr + "]")
 	if config.AdminIPAddr != "" {
 		ipaddr = config.AdminIPAddr
 	}
-	log.Println("adminserver: initializing on " + ipaddr)
+	glog.V(2).Infoln("adminserver: initializing on " + ipaddr)
 	globalconfig = config
 
 	api := rest.NewApi()
@@ -44,21 +44,21 @@ func Initialize(config *config.Config) {
 		&rest.Route{"GET", "/stream", StreamEvents},
 	)
 	if err != nil {
-		log.Fatal(err)
+		glog.Fatalln(err)
 	}
 	api.SetApp(router)
 
 	http.Handle("/api/", http.StripPrefix("/api", api.MakeHandler()))
 
-	log.Fatal(http.ListenAndServe(ipaddr, nil))
+	http.ListenAndServe(ipaddr, nil)
 }
 
 func GetConfig(w rest.ResponseWriter, r *rest.Request) {
-	log.Println("adminserver: GetConfig called")
+	glog.V(2).Infoln("adminserver: GetConfig called")
 
 	w.Header().Set("Content-Type", "text/json")
 	w.WriteJson(globalconfig)
-	log.Println("adminserver: GetConfig report written")
+	glog.V(2).Infoln("adminserver: GetConfig report written")
 }
 
 type AdminStatsNode struct {
@@ -72,7 +72,7 @@ type AdminStats struct {
 }
 
 func GetStats(w rest.ResponseWriter, r *rest.Request) {
-	log.Println("adminserver: GetStats called")
+	glog.V(2).Infoln("adminserver: GetStats called")
 
 	stats := AdminStats{}
 	stats.Nodes = make([]AdminStatsNode, 1+len(globalconfig.Replicas))
@@ -88,5 +88,5 @@ func GetStats(w rest.ResponseWriter, r *rest.Request) {
 
 	w.Header().Set("Content-Type", "text/json")
 	w.WriteJson(&stats)
-	log.Println("adminserver: GetStatus report written")
+	glog.V(2).Infoln("adminserver: GetStatus report written")
 }

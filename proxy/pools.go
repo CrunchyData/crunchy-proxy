@@ -15,22 +15,22 @@ package proxy
 
 import (
 	"github.com/crunchydata/crunchy-proxy/config"
-	"log"
+	"github.com/golang/glog"
 	"net"
 )
 
 func ReturnConnection(ch chan int, connIndex int) {
-	log.Printf("returning poolIndex %d\n", connIndex)
+	glog.V(2).Infoln("returning poolIndex %d\n", connIndex)
 	ch <- connIndex
 }
 
 func SetupPools(c *config.Config) {
 	if !c.Pool.Enabled {
-		log.Println("[pool] pooling not enabled")
+		glog.Errorln("[pool] pooling not enabled")
 		return
 	}
 
-	log.Println("[pool] pooling enabled")
+	glog.V(2).Infoln("[pool] pooling enabled")
 
 	for i := 0; i < len(c.Replicas); i++ {
 		setupPoolForNode(c, &c.Replicas[i])
@@ -48,10 +48,10 @@ func setupPoolForNode(c *config.Config, node *config.Node) {
 	for j := 0; j < c.Pool.Capacity; j++ {
 		node.Pool.Channel <- j
 		//add a connection to the node pool
-		log.Printf("[pool] adding conn to node %s pool\n", node.IPAddr)
+		glog.V(2).Infoln("[pool] adding conn to node %s pool\n", node.IPAddr)
 		node.Pool.Connections[j], err = node.GetConnection()
 		if err != nil {
-			log.Println("error in getting pool conn for node " + err.Error())
+			glog.Errorln("error in getting pool conn for node " + err.Error())
 		}
 		Authenticate(c, node, node.Pool.Connections[j])
 	}

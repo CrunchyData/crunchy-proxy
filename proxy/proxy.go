@@ -17,13 +17,13 @@ package proxy
 
 import (
 	"github.com/crunchydata/crunchy-proxy/config"
-	"log"
+	"github.com/golang/glog"
 	"net"
 )
 
 func ListenAndServe(config *config.Config) {
-	log.Println("[proxy] ListenAndServe config=" + config.Name)
-	log.Println("[proxy] ListenAndServe listening on ipaddr=" + config.IPAddr)
+	glog.Infoln("[proxy] ListenAndServe config=" + config.Name)
+	glog.Infoln("[proxy] ListenAndServe listening on ipaddr=" + config.IPAddr)
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", config.IPAddr)
 	checkError(err)
@@ -47,11 +47,11 @@ func handleListener(config *config.Config, listener net.Listener) {
 	}
 }
 func handleClient(cfg *config.Config, client net.Conn) {
-	log.Println("[proxy] handleClient start")
+	glog.V(2).Infoln("[proxy] handleClient start")
 
 	err := connect(cfg, client)
 	if err != nil {
-		log.Println("FATAL: client could not authenticate and connect")
+		glog.Errorln("client could not authenticate and connect")
 		return
 	}
 
@@ -71,14 +71,14 @@ func handleClient(cfg *config.Config, client net.Conn) {
 
 		reqLen, err = client.Read(masterBuf)
 		if err != nil {
-			log.Println("[proxy] error reading from client conn" + err.Error())
+			glog.Errorln("[proxy] error reading from client conn" + err.Error())
 			return
 		}
 
 		msgType = ProtocolMsgType(masterBuf)
 		LogProtocol("-->", "", masterBuf, reqLen)
 
-		log.Println("here is a new msgType=" + msgType)
+		glog.V(2).Infoln("here is a new msgType=" + msgType)
 
 		//
 		// adapt inbound data
@@ -91,30 +91,30 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		//copy(replicaBuf, masterBuf)
 
 		if msgType == "X" {
-			log.Println("termination msg received")
+			glog.V(2).Infoln("termination msg received")
 			return
 		} else if msgType == "Q" {
 			poolIndex = -1
 			writeCase = IsWriteAnno(masterBuf)
 			nextNode, err = cfg.GetNextNode(writeCase)
 			if err != nil {
-				log.Println(err.Error())
+				glog.Errorln(err.Error())
 				return
 			}
 			//get pool index from pool channel
 			poolIndex = <-nextNode.Pool.Channel
 
-			log.Printf("query sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
+			glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
 			backendConn = nextNode.Pool.Connections[poolIndex]
 
 			nextNode.Stats.Queries = nextNode.Stats.Queries + 1
 
 			writeLen, err = backendConn.Write(masterBuf[:reqLen])
-			log.Printf("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)
-			log.Printf("read masterBuf readLen=%d\n", readLen)
+			glog.V(2).Infof("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)
+			glog.V(2).Infof("read masterBuf readLen=%d\n", readLen)
 			if err != nil {
-				log.Println(err.Error())
-				log.Println("[proxy] error here")
+				glog.Errorln(err.Error())
+				glog.Errorln("[proxy] error here")
 			}
 			readLen, err = backendConn.Read(masterBuf)
 			if poolIndex != -1 {
@@ -122,8 +122,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			}
 
 			if err != nil {
-				log.Println(err.Error())
-				log.Println("attempting retry of query...")
+				glog.Errorln(err.Error())
+				glog.Errorln("attempting retry of query...")
 				//right here is where retry logic occurs
 				//mark as unhealthy the current node
 				config.UpdateHealth(nextNode, false)
@@ -131,33 +131,33 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				//get next node as usual
 				nextNode, err = cfg.GetNextNode(writeCase)
 				if err != nil {
-					log.Println("could not get node for query retry")
-					log.Println(err.Error())
+					glog.Errorln("could not get node for query retry")
+					glog.Errorln(err.Error())
 				} else {
 					writeLen, err = nextNode.Pool.Connections[0].Write(masterBuf[:reqLen])
 					readLen, err = nextNode.Pool.Connections[0].Read(masterBuf)
 					if err != nil {
-						log.Println("query retry failed")
-						log.Println(err.Error())
+						glog.Errorln("query retry failed")
+						glog.Errorln(err.Error())
 					}
 				}
 			}
 
 			writeLen, err = client.Write(masterBuf[:readLen])
 			if err != nil {
-				log.Println("[proxy] closing client conn" + err.Error())
+				glog.V(2).Infoln("[proxy] closing client conn" + err.Error())
 				return
 			}
 
-			log.Printf("[proxy] wrote1 to pg client %d\n", writeLen)
+			glog.V(2).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
 		} else {
 
-			log.Println("XXXX msgType here is " + msgType)
+			glog.V(2).Infoln("XXXX msgType here is " + msgType)
 
 			writeLen, err = cfg.Master.TCPConn.Write(masterBuf[:reqLen])
 			readLen, err = cfg.Master.TCPConn.Read(masterBuf)
 			if err != nil {
-				log.Println("master WriteRead error:" + err.Error())
+				glog.Errorln("master WriteRead error:" + err.Error())
 			}
 
 			msgType = ProtocolMsgType(masterBuf)
@@ -165,11 +165,11 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			//write to client only the master response
 			writeLen, err = client.Write(masterBuf[:readLen])
 			if err != nil {
-				log.Println("[proxy] closing client conn" + err.Error())
+				glog.Errorln("[proxy] closing client conn" + err.Error())
 				return
 			}
 
-			log.Printf("[proxy] wrote3 to pg client %d\n", writeLen)
+			glog.V(2).Infof("[proxy] wrote3 to pg client %d\n", writeLen)
 		}
 
 		//err = cfg.Adapter.Do(&masterBuf, readLen) //adapt the outbound msg
@@ -179,11 +179,11 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		//}
 
 	}
-	log.Println("[proxy] closing client conn")
+	glog.V(2).Infoln("[proxy] closing client conn")
 }
 func checkError(err error) {
 	if err != nil {
-		log.Fatalf("Fatal	error:	%s", err.Error())
+		glog.Fatalf("Fatal	error:	%s", err.Error())
 	}
 }
 

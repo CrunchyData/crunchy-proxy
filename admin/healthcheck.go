@@ -17,8 +17,8 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/crunchydata/crunchy-proxy/config"
+	"github.com/golang/glog"
 	_ "github.com/lib/pq"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -85,7 +85,7 @@ func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node con
 	defer conn.Close()
 
 	if err != nil {
-		log.Println("[hc] healthcheck failed: error: " + err.Error())
+		glog.Errorln("[hc] healthcheck failed: error: " + err.Error())
 		return false
 	}
 	//log.Println("[hc] got a connection")
@@ -112,7 +112,7 @@ func GetDBConnection(dbHost string, dbUser string, dbPort string, database strin
 		dbConn, err = sql.Open("postgres", "sslmode=disable user="+dbUser+" host="+dbHost+" port="+dbPort+" dbname="+database+" password="+dbPassword)
 	}
 	if err != nil {
-		log.Println("error in getting connection :" + err.Error())
+		glog.Errorln("error in getting connection :" + err.Error())
 	}
 	return dbConn, err
 }

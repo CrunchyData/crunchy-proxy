@@ -18,17 +18,17 @@ import (
 	"github.com/crunchydata/crunchy-proxy/admin"
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/crunchydata/crunchy-proxy/proxy"
-	"log"
+	"github.com/golang/glog"
 )
 
 var cfg config.Config
 
 func main() {
-	log.SetFlags(log.Ltime | log.Lmicroseconds)
-	log.Println("main starting...")
-
 	//get the Config
 	cfg = config.ReadConfig()
+
+	glog.Infoln("main starting...")
+
 	go admin.StartHealthcheck(&cfg)
 	cfg.SetupAdapters()
 	cfg.PrintNodeInfo("after SetupAdapters")

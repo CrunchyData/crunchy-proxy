@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/crunchydata/crunchy-proxy/adapter"
+	"github.com/golang/glog"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -79,17 +80,17 @@ type Config struct {
 func (c Config) Print() {
 	str, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		log.Println(err)
+		glog.Errorln(err)
 	}
-	log.Println(string(str))
+	glog.V(2).Infoln(string(str))
 
 }
 func (c Config) PrintNodeInfo(msg string) {
-	log.Printf("----Master Info %s----\n", msg)
-	log.Printf("master=%s ", c.Master.IPAddr)
-	log.Printf("----Replica Info %s----\n", msg)
+	glog.Infoln("----Master Info %s----\n", msg)
+	glog.Infoln("master=%s ", c.Master.IPAddr)
+	glog.Infoln("----Replica Info %s----\n", msg)
 	for i := 0; i < len(c.Replicas); i++ {
-		log.Printf("replica=%s ", c.Replicas[i].IPAddr)
+		glog.Infoln("replica=%s ", c.Replicas[i].IPAddr)
 	}
 }
 
@@ -131,9 +132,9 @@ func PrintExample() {
 
 	str, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		log.Println(err)
+		glog.Errorln(err)
 	}
-	log.Println(string(str))
+	glog.V(2).Infoln(string(str))
 }
 
 func ReadConfig() Config {
@@ -141,9 +142,9 @@ func ReadConfig() Config {
 	var filePath string
 	flag.StringVar(&filePath, "config", "", "a configuration file")
 	flag.Parse()
-	log.Println("[config]" + filePath + " is the config path")
+	glog.V(2).Infoln("[config]" + filePath + " is the config path")
 	if filePath == "" {
-		log.Println("-config command option required")
+		glog.Errorln("-config command option required")
 		os.Exit(1)
 	}
 
@@ -176,10 +177,10 @@ func (n *Node) GetConnection() (*net.TCPConn, error) {
 func (c *Config) GetAllConnections() {
 
 	var err error
-	log.Println("dialing " + c.Master.IPAddr)
+	glog.V(2).Infoln("dialing " + c.Master.IPAddr)
 	c.Master.TCPConn, err = net.DialTCP("tcp", nil, c.Master.TCPAddr)
 	if err != nil {
-		log.Println(err.Error())
+		glog.Errorln(err.Error())
 	}
 
 }
@@ -194,7 +195,7 @@ func (c *Config) SetupAdapters() {
 		case "logging":
 			ds = append(ds, adapter.Logging(log.New(os.Stdout, "[log adapter]", 0)))
 		default:
-			log.Println("config found invalid adapter:" + c.Adapters[i])
+			glog.Errorln("config found invalid adapter:" + c.Adapters[i])
 		}
 	}
 
@@ -210,10 +211,10 @@ func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
 
 	if writeCase || rCnt == 0 {
 		if !c.Master.Healthy {
-			log.Println("master is unhealthy!")
+			glog.V(2).Infoln("master is unhealthy!")
 			return &c.Master, errors.New("unhealthy master")
 		}
-		log.Println("writeCase so using master as node...")
+		glog.V(2).Infoln("writeCase so using master as node...")
 		return &c.Master, err
 	}
 
@@ -221,15 +222,15 @@ func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
 
 	for i := 0; i < len(c.Replicas); i++ {
 		if c.Replicas[i].Healthy {
-			log.Println("picked replica that was healthy")
+			glog.V(2).Infoln("picked replica that was healthy")
 			replicaHealthy = true
 		}
 	}
 
 	if rCnt == 1 && replicaHealthy == false {
-		log.Println("no replicas are healthy..using master")
+		glog.V(2).Infoln("no replicas are healthy..using master")
 		if !c.Master.Healthy {
-			log.Println("master is unhealthy!")
+			glog.V(2).Infoln("master is unhealthy!")
 			return &c.Master, errors.New("unhealthy master")
 		}
 		return &c.Master, err
@@ -245,21 +246,21 @@ func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
 
 	myrand := random(0, rCnt)
 	if !c.Replicas[myrand].Healthy {
-		log.Println("random replica was not healthy")
+		glog.V(2).Infoln("random replica was not healthy")
 		//find first healthy replica
 		for i := 0; i < len(c.Replicas); i++ {
 			if c.Replicas[i].Healthy {
-				log.Println("picked replica that was healthy")
+				glog.V(2).Infoln("picked replica that was healthy")
 				return &c.Replicas[i], err
 			}
 		}
 
-		log.Println("no healthy replica found")
+		glog.V(2).Infoln("no healthy replica found")
 		if c.Master.Healthy {
-			log.Println("master is healthy will use instead of replica!")
+			glog.V(2).Infoln("master is healthy will use instead of replica!")
 			return &c.Master, err
 		}
-		log.Println("master is unhealthy and no healthy replica found")
+		glog.V(2).Infoln("master is unhealthy and no healthy replica found")
 		return &c.Master, errors.New("master and all replicas are unhealthy")
 	}
 
@@ -274,16 +275,16 @@ func random(min, max int) int {
 
 func checkError(err error) {
 	if err != nil {
-		log.Fatalf("Fatal   error:  %s", err.Error())
+		glog.Fatalf("Fatal   error:  %s", err.Error())
 	}
 }
 
 func containsMapValues(m1 map[string]string, m2 map[string]string) bool {
 	for k, v := range m1 {
 		if m2[k] == v {
-			log.Printf("%s found in m2\n", v)
+			glog.Fatalf("%s found in m2\n", v)
 		} else {
-			log.Printf("%s not found in m2\n", v)
+			glog.V(2).Infof("%s not found in m2\n", v)
 			return false
 		}
 	}

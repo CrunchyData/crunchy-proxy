@@ -17,7 +17,7 @@ package proxy
 
 import (
 	"bytes"
-	"log"
+	"github.com/golang/glog"
 	"strings"
 )
 
@@ -30,12 +30,12 @@ func IsWrite(buf []byte) bool {
 	var query string
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	query = string(buf[5:msgLen])
-	log.Printf("IsWrite: msglen=%d query=%s\n", msgLen, query)
+	glog.V(2).Infoln("IsWrite: msglen=%d query=%s\n", msgLen, query)
 	upperQuery := strings.ToUpper(query)
 
 	for i := range WRITE_COMMANDS {
 		if strings.Contains(upperQuery, WRITE_COMMANDS[i]) {
-			log.Println(WRITE_COMMANDS[i] + " was parsed out of query")
+			glog.V(2).Infoln(WRITE_COMMANDS[i] + " was parsed out of query")
 			return true
 		}
 	}
@@ -54,46 +54,46 @@ func IsWriteAnno(buf []byte) bool {
 	var query string
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	query = string(buf[5:msgLen])
-	log.Printf("IsWrite: msglen=%d query=%s\n", msgLen, query)
+	glog.V(2).Infof("IsWrite: msglen=%d query=%s\n", msgLen, query)
 
 	querybuf := buf[5:msgLen]
 	startPos := bytes.Index(buf, START)
 	endPos := bytes.Index(buf, END)
 	if startPos < 0 || endPos < 0 {
-		log.Println("no comment found..assuming write case and stateful")
+		glog.V(2).Infoln("no comment found..assuming write case and stateful")
 		return true
 	}
 	startPos = startPos + 5 //add 5 for msg header length
 	endPos = endPos + 5     //add 5 for msg header length
 
 	comment := buf[bytes.Index(querybuf, START)+2+5 : bytes.Index(querybuf, END)+5]
-	log.Printf("comment=[%s]\n", string(comment))
+	glog.V(2).Infof("comment=[%s]\n", string(comment))
 
 	keywords := bytes.Split(comment, []byte(","))
 	var stateful = false
 	var write = true
 	var keywordFound = false
 	for i := 0; i < len(keywords); i++ {
-		log.Printf("keyword=[%s]\n", string(bytes.TrimSpace(keywords[i])))
+		glog.V(2).Infof("keyword=[%s]\n", string(bytes.TrimSpace(keywords[i])))
 		if string(bytes.TrimSpace(keywords[i])) == "read" {
-			log.Println("read was found")
+			glog.V(2).Infoln("read was found")
 			write = false
 			keywordFound = true
 		}
 		if string(bytes.TrimSpace(keywords[i])) == "write" {
-			log.Println("write was found")
+			glog.V(2).Infoln("write was found")
 			write = true
 			keywordFound = true
 		}
 		if string(bytes.TrimSpace(keywords[i])) == "stateful" {
-			log.Println("stateful was found")
+			glog.V(2).Infoln("stateful was found")
 			stateful = true
 			keywordFound = true
 		}
 	}
-	log.Printf("write=%t stateful=%t\n", write, stateful)
+	glog.V(2).Infof("write=%t stateful=%t\n", write, stateful)
 	if keywordFound == false {
-		log.Println("no keywords found in SQL comment..assuming write")
+		glog.V(2).Infoln("no keywords found in SQL comment..assuming write")
 	}
 
 	return write

@@ -17,7 +17,7 @@ package admin
 
 import (
 	"github.com/ant0ine/go-json-rest/rest"
-	"log"
+	"github.com/golang/glog"
 	"net/http"
 )
 
@@ -30,7 +30,7 @@ var EventChannel []chan ProxyEvent
 
 func init() {
 	//EventChannel = make(chan ProxyEvent, 50)
-	log.Println("setting up the Event Channel")
+	glog.V(2).Infoln("setting up the Event Channel")
 }
 func AddEventSubscriber() chan ProxyEvent {
 	subscriber := make(chan ProxyEvent)
@@ -45,10 +45,10 @@ func StreamEvents(w rest.ResponseWriter, r *rest.Request) {
 
 	for {
 		cpt++
-		log.Println("waiting for stream channel to get event")
+		glog.V(2).Infoln("waiting for stream channel to get event")
 		select {
 		case event := <-eventsChannel:
-			log.Println("got an Event from channel")
+			glog.V(2).Infoln("got an Event from channel")
 			w.WriteJson(&event)
 			w.(http.ResponseWriter).Write([]byte("\n"))
 			// Flush the buffer to client

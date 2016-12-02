@@ -21,7 +21,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/crunchydata/crunchy-proxy/config"
-	"log"
+	"github.com/golang/glog"
 	"net"
 )
 
@@ -32,7 +32,7 @@ func ProtocolMsgType(buf []byte) string {
 func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
 	var msgType byte
 	if hint == "startup" {
-		log.Printf("[protocol] %s %s [%s]\n", direction, hint, "startup")
+		glog.V(2).Infof("[protocol] %s %s [%s]\n", direction, hint, "startup")
 		StartupRequest(buf, bufLen)
 		return
 	} else {
@@ -40,7 +40,7 @@ func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
 		//msgType = string(buf[0])
 		msgType = buf[0]
 		//msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-		log.Printf("[protocol] %s %s [%c]\n", direction, hint, msgType)
+		glog.V(2).Infof("[protocol] %s %s [%c]\n", direction, hint, msgType)
 		switch msgType {
 		case 'R':
 			AuthenticationRequest(buf)
@@ -70,7 +70,7 @@ func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
 			PasswordMessage(buf)
 			return
 		default:
-			log.Printf("[protocol] %s %s [%c] NOT handled!!\n", direction, hint, msgType)
+			glog.Errorf("[protocol] %s %s [%c] NOT handled!!\n", direction, hint, msgType)
 			return
 		}
 	}
@@ -94,16 +94,16 @@ func AuthenticationRequest(buf []byte) []byte {
 	mtype = int32(buf[5])<<24 | int32(buf[6])<<16 | int32(buf[7])<<8 | int32(buf[8])
 	var salt = []byte{buf[9], buf[10], buf[11], buf[12]}
 	var saltstr = string(salt)
-	log.Printf("[protocol] AuthenticationRequest: msglen=%d type=%d salt=%x saltstr=%s\n", msgLen, mtype, salt, saltstr)
+	glog.V(2).Infof("[protocol] AuthenticationRequest: msglen=%d type=%d salt=%x saltstr=%s\n", msgLen, mtype, salt, saltstr)
 	return salt
 }
 
 func ErrorResponse(buf []byte) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	log.Printf("[protocol] ErrorResponse: msglen=%d\n", msgLen)
+	glog.V(2).Infof("[protocol] ErrorResponse: msglen=%d\n", msgLen)
 	var errorMessage = string(buf[5:msgLen])
-	log.Printf("[protocol] ErrorResponse: message=%s\n", errorMessage)
+	glog.V(2).Infof("[protocol] ErrorResponse: message=%s\n", errorMessage)
 }
 
 func StartupRequest(buf []byte, bufLen int) {
@@ -112,7 +112,7 @@ func StartupRequest(buf []byte, bufLen int) {
 	//var parameters []string
 	msgLen = int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3])
 	startupProtocol = int32(buf[4])<<24 | int32(buf[5])<<16 | int32(buf[6])<<8 | int32(buf[7])
-	log.Printf("[protocol] StartupRequest: msglen=%d protocol=%d\n", msgLen, startupProtocol)
+	glog.V(2).Infof("[protocol] StartupRequest: msglen=%d protocol=%d\n", msgLen, startupProtocol)
 	//parameters = string(buf[8 : bufLen-8])
 	/**
 	parameters = NullTermToStrings(buf[8 : bufLen-1])
@@ -128,7 +128,7 @@ func QueryRequest(buf []byte) {
 	var query string
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	query = string(buf[5:msgLen])
-	log.Printf("[protocol] QueryRequest: msglen=%d query=%s\n", msgLen, query)
+	glog.V(2).Infof("[protocol] QueryRequest: msglen=%d query=%s\n", msgLen, query)
 }
 
 func NoticeResponse(buf []byte) {
@@ -138,20 +138,20 @@ func NoticeResponse(buf []byte) {
 	//log.Printf("[protocol] NoticeResponse: msglen=%d\n", msgLen)
 	var fieldType = buf[5]
 	var fieldMsg = string(buf[6:msgLen])
-	log.Printf("[protocol] NoticeResponse: msglen=%d fieldType=%x fieldMsg=%s\n", msgLen, fieldType, fieldMsg)
+	glog.V(2).Infof("[protocol] NoticeResponse: msglen=%d fieldType=%x fieldMsg=%s\n", msgLen, fieldType, fieldMsg)
 }
 
 func RowDescription(buf []byte, bufLen int) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	log.Printf("[protocol] RowDescription: msglen=%d\n", msgLen)
+	glog.V(2).Infof("[protocol] RowDescription: msglen=%d\n", msgLen)
 	//query = string(buf[5:msgLen])
 	var data []byte
 
 	data = buf[4+msgLen : bufLen]
 
 	var dataRowType = string(data[0])
-	log.Printf("[protocol] datarow type%s found \n", dataRowType)
+	glog.V(2).Infof("[protocol] datarow type%s found \n", dataRowType)
 	//	msgLen = int32(data[bufPtr+1])<<24 | int32(data[bufPtr+2])<<16 | int32(data[bufPtr+3])<<8 | int32(data[bufPtr+4])
 	//	log.Printf("[protocol] datarow type%s found with msglen=%d\n", dataRowType, msgLen)
 	//
@@ -169,19 +169,19 @@ func DataRow(buf []byte) {
 	numfields = int(buf[5])<<8 | int(buf[6])
 	fieldLen = int32(buf[7])<<24 | int32(buf[8])<<16 | int32(buf[9])<<8 | int32(buf[10])
 	fieldValue = string(buf[11 : fieldLen+11])
-	log.Printf("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n", numfields, msgLen, fieldLen, fieldValue)
+	glog.V(2).Infof("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n", numfields, msgLen, fieldLen, fieldValue)
 	//var data = string(buf[7:msgLen])
 	//log.Printf("[protocol] DataRow: data=%s\n", data)
 }
 func CommandComplete(buf []byte) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	log.Printf("[protocol] Command Complete: msglen=%d\n", msgLen)
+	glog.V(2).Infof("[protocol] Command Complete: msglen=%d\n", msgLen)
 }
 func TerminateMessage(buf []byte) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	log.Printf("[protocol] Terminate: msglen=%d\n", msgLen)
+	glog.V(2).Infof("[protocol] Terminate: msglen=%d\n", msgLen)
 	//query = string(buf[5:msgLen])
 	//log.Printf("[protocol] RowDescription: msglen=%d query=%s\n", msgLen, query)
 }
@@ -200,23 +200,23 @@ func PasswordMessage(buf []byte) {
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	var hash = string(buf[5:msgLen])
 
-	log.Printf("[protocol] PasswordMessage: msglen=%d password hash=%s\n", msgLen, hash)
+	glog.V(2).Infof("[protocol] PasswordMessage: msglen=%d password hash=%s\n", msgLen, hash)
 }
 func PasswordMessageFake(buf []byte, salt []byte, username string, password string) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	var hash = string(buf[5:msgLen])
 
-	log.Printf("[protocol] PasswordMessageFake: username=%s password=%s\n", username, password)
-	log.Printf("[protocol] PasswordMessageFake: msglen=%d password hash=%s salt=%x saltlen=%d\n", msgLen, hash, salt, len(salt))
+	glog.V(2).Infof("[protocol] PasswordMessageFake: username=%s password=%s\n", username, password)
+	glog.V(2).Infof("[protocol] PasswordMessageFake: msglen=%d password hash=%s salt=%x saltlen=%d\n", msgLen, hash, salt, len(salt))
 
 	s := string(salt)
 	hashstr := "md5" + md5s(md5s(password+username)+s)
 
-	log.Printf("[protocol] PasswordMessageFake: hashstr=%s\n", hashstr)
+	glog.V(2).Infof("[protocol] PasswordMessageFake: hashstr=%s\n", hashstr)
 	hashbytes := []byte(hashstr)
 	copy(buf[5:], hashbytes)
-	log.Println("generated hash " + hashstr)
+	glog.V(2).Infoln("generated hash " + hashstr)
 }
 
 func md5s(s string) string {
@@ -235,44 +235,44 @@ func Authenticate(cfg *config.Config, node *config.Node, conn *net.TCPConn) {
 	//write to backend
 	writeLen, err = conn.Write(startupMsg)
 	if err != nil {
-		log.Println(err.Error() + " at this pt")
+		glog.Errorln(err.Error() + " at this pt")
 	}
-	log.Printf("wrote %d to backend\n", writeLen)
+	glog.V(2).Infof("wrote %d to backend\n", writeLen)
 
 	//read from backend
 	buf = make([]byte, 2048)
 	readLen, err = conn.Read(buf)
 	if err != nil {
-		log.Println(err.Error() + " at this pt2")
+		glog.Errorln(err.Error() + " at this pt2")
 	}
 
 	//should get back an AuthenticationRequest 'R'
 	LogProtocol("<--", "pool node", buf, len(buf))
 	msgType := ProtocolMsgType(buf)
 	if msgType != "R" {
-		log.Println("pool error: should have got R message here")
+		glog.Errorln("pool error: should have got R message here")
 	}
 	salt := AuthenticationRequest(buf)
-	log.Printf("salt from AuthenticationRequest was %s %x\n", string(salt), salt)
+	glog.V(2).Infof("salt from AuthenticationRequest was %s %x\n", string(salt), salt)
 
 	//create password message and send back to backend
 	pswMsg := getPasswordMessage(salt, cfg.Credentials.Username, cfg.Credentials.Password)
 
 	//write to backend
 	writeLen, err = conn.Write(pswMsg)
-	log.Printf("wrote %d to backend\n", writeLen)
+	glog.V(2).Infof("wrote %d to backend\n", writeLen)
 	if err != nil {
-		log.Println(err.Error() + " at this pta")
+		glog.Errorln(err.Error() + " at this pta")
 	}
 
 	//read from backend
 	readLen, err = conn.Read(buf)
 	if err != nil {
-		log.Println(err.Error() + " at this pt3")
+		glog.Errorln(err.Error() + " at this pt3")
 	}
 
 	msgType = ProtocolMsgType(buf)
-	log.Println("after passwordmsg got msgType " + msgType)
+	glog.V(2).Infoln("after passwordmsg got msgType " + msgType)
 	if msgType == "R" {
 		LogProtocol("<--", "AuthenticationOK", buf, readLen)
 	}
@@ -292,7 +292,7 @@ func getPasswordMessage(salt []byte, username string, password string) []byte {
 	s := string(salt)
 	hashstr := "md5" + md5s(md5s(password+username)+s)
 
-	log.Printf("[protocol] getPasswordMessage: hashstr=%s\n", hashstr)
+	glog.V(2).Infof("[protocol] getPasswordMessage: hashstr=%s\n", hashstr)
 	buffer = append(buffer, hashstr...)
 
 	//null terminate the string
@@ -302,8 +302,8 @@ func getPasswordMessage(salt []byte, username string, password string) []byte {
 	binary.BigEndian.PutUint32(x, uint32(len(buffer)-1))
 	copy(buffer[1:], x)
 
-	log.Printf(" psw msg len=%d\n", len(buffer))
-	log.Printf(" psw msg =%s\n", string(buffer))
+	glog.V(2).Infof(" psw msg len=%d\n", len(buffer))
+	glog.V(2).Infof(" psw msg =%s\n", string(buffer))
 	return buffer
 
 }
