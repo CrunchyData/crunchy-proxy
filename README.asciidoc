@@ -78,7 +78,7 @@ The upside of this design choice includes:
 
 == Protocol Aware
 
-*crunchy-proxy* implements enough of the PostgreSQL wire protocol in
+*crunchy-proxy* implements portions of the PostgreSQL wire protocol in
 order to examine messages related to authentication and SQL statements.
 The following resources were extremely useful in understanding the
 wire protocol and how portions of it could be implemented for this
@@ -93,7 +93,6 @@ variety of features important for high speed proxy handling and for
 supporting PostgreSQL features to the fullest extent.
 
 == Performance
-
 
 Comparing the throughtput of *crunchy-proxy* to pgpool, the performance
 gains are promising, here is chart that shows the time it takes
