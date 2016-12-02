@@ -125,10 +125,11 @@ select /* read */ from foo.....
 ....
 
 In the case of a transaction, all SQL statements within a begin block will 
-be sent to a single backend.
+be sent to a single backend. This feature is *not implemented yet*, but would
+likely use an annotation to denote a transaction:
 ....
-/* read */ begin; select .....; commit;
-begin; select .....; commit;
+/* txn, read */ begin; select .....; commit;
+begin /*txn*/; select .....; commit;
 ....
 
 
