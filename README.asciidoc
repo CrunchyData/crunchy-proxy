@@ -5,45 +5,32 @@ image::docs/crunchy_logo.png?raw=true[]
 
 == Project
 
-*crunchy-proxy* is an experimental PostgreSQL-aware proxy used to handle PostgreSQL application requests.  In the diagram below, a PostgreSQL
-client application would connect to the proxy which appears as any other
-PostgreSQL database connection.  The proxy would accept the inbound client
-requests, and route them to an appropriate PostgreSQL cluster member.
+*crunchy-proxy* is an experimental PostgreSQL-aware proxy used to handle PostgreSQL application requests.  The diagram below depicts a PostgreSQL client application connecting to the crunchy-proxy, which appears to the PostgreSQL application as any other PostgreSQL database connection.  The crunchy-proxy accepts the inbound client requests, and routes them to an appropriate PostgreSQL cluster member (as described in more detail below).
 
 image::docs/proxy-diagram.png?raw=true[]
 
-To the PostgreSQL server, the proxy is transparent and appears as any other
-PostgreSQL client would appear.  Within the proxy, various capabilities are
-found including:
+To the PostgreSQL server, the crunchy-proxy is transparent and appears as any other
+PostgreSQL client would appear.  As described in more detail below, the crunchy-proxy currently provides the following capabilities:
 
- * route messages based on the SQL command type, writes are
+ * ability to route messages based on the SQL command type - writes are
    sent to a master and reads are sent to replicas in a round-robin fashion
  * configuration via JSON file
  * PostgreSQL healthcheck
- * route inbound client messages based on the health of PostgreSQL
+ * ability to route inbound client messages based on the health of PostgreSQL
  * REST administrative interface
- * publish healthcheck events to consumers outside of the proxy
- * load balance SQL statements across multiple replica backends
+ * ability to publish healthcheck events to consumers outside of the proxy
+ * ability to load balance SQL statements across multiple replica backends
  * connection pooling
+ 
+As described under "Approach" below, implementation of the *crunchy-proxy* requires that (1) a user has access to their application's SQL and (2) a user has the ability to add basic annotations to their SQL statements.
 
 == Approach
 
-One of the key features of the *crunchy-proxy* is to figure out how
-to route SQL statements to a PostgreSQL cluster members.  This feature
-allows end-user applications to see a PostgreSQL cluster as a single
-connection.  This feature requires some knowledge of the SQL that
-an application sends to PostgreSQL.
+One of the key features of the *crunchy-proxy* is the ability of the crunchy-proxy to route different SQL statements to a PostgreSQL cluster members based on certain pre-defined rules.  This capability enables end-user applications to see a PostgreSQL cluster as a single connection.  In order to support this capability, it is necessary that *crunchy-proxy* have knowledge of the SQL statements that a PostgreSQL application sends to PostgreSQL.
 
-One approach (e.g. link:http://www.pgpool.net/mediawiki/index.php/Main_Page[pgpool]) is to parse each SQL statement looking
-for grammar that would imply a *write* or *update* and then send
-those SQL statements to the cluster master.  SQL statements that
-are determined to be *read-only* in nature are safe to send to the
-cluster replica members.  Remember, in PostgreSQL cluster replica 
-members are only able to process SQL that is *read-only* in nature.
+One approach to addressing the requirement that a proxy be "SQL aware" (e.g. link:http://www.pgpool.net/mediawiki/index.php/Main_Page[pgpool]) is to first parse each SQL statement looking for grammar that would imply a *write* or *update* and to then send those SQL statements to the cluster master.  SQL statements that are determined to be *read-only* in nature are deemed safe to send to the cluster replica members.  Remember, in PostgreSQL cluster replica  members are only able to process SQL that is *read-only* in nature.
 
-For *crunchy-proxy* we have taken a different approach to SQL routing.
-Instead of parsing the entire SQL grammer of each SQL statement, *crunchy-proxy* looks for a simple annotation, supplied by the end-user within their SQL
-statement, to determine the routing destination.
+*crunchy-proxy* takes a different approach to SQL routing. Instead of attempting to parse the entire SQL grammer of each SQL statement, *crunchy-proxy* looks for a simple annotation, supplied by the end-user within their SQL statement, to determine the routing destination.
 
 For example, the following SQL statement is annotated to indicate it
 is a *read-only* SQL statement:
@@ -57,24 +44,13 @@ create table boofar (id int);
 drop /* write */ table boofar (id int);
 ....
 
-If a SQL statement doesn't include an annotation, the the statement
-is considered a *write* and sent to the master cluster member.
+If a SQL statement does not include an annotation, the the statement is deemed a *write* and thus sent to the master cluster member.
 
-The *crunchy-proxy* parses only the annotation which greatly simplfies
-the problem of determining where to send a SQL statement into a PostgreSQL
-cluster. 
+By parsing only the annotation, *crunchy-proxy* simplifies the complexity associated with determining whether a SQL statement is a *write* or *read* and thus to which member (master or replica) of a PostgreSQL cluser to send a SQL statement. 
 
-The key tradeoff with this design is whether a user has access to their
-application's SQL and the ability to add the annotation.  If they do, then
-they can use the *crunchy-proxy* for SQL routing.  Our estimate is that
-most users do indeed have access to their SQL source code and understand
-it enough to place the annotation.
+In taking this approach, *crunchy-proxy* has assumed (1) a user has access to their application's SQL and (2) a user has the ability to add the annotation in their SQL statements.  If they do, then they can use the *crunchy-proxy* for SQL routing.  
 
-The upside of this design choice includes:
-
- * much simpler proxy parsing implementation
- * huge increase in proxy throughput
- * better routing accuracy
+Of course these assumptions introduce certain limitations on the *crunchy-proxy*.  Nonetheless, it was determined that these assumptions will not be unduly limiting in the usability of the *crunchy-proxy* and that the resulting limiations are justified by the benefits of (1) reduction in complexity associated with SQL parsing implementation, (2) increase in proxy throughput and (3) improved routing accuracy of the SQL parsing.
 
 == Protocol Aware
 
