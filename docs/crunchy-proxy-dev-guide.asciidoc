@@ -134,6 +134,22 @@ annotation:
 In that case, the entire set of SQL statements would be sent to the same
 backend.
 
+=== Health Checking
+
+The status of a backend is checked in a separate goroutine that runs
+until the proxy exits.  That status is simplistic currently, essentially
+whether or not the backend can process a SQL statement determines
+whether the health of the backend is good or bad.  This health check
+is performed every few seconds on each backend.
+
+As the status of a backend changes, the global configuration is
+updated.  The backend status checked by the active connection
+processing to determine which backends are available to process
+a SQL statement.
+
+Health status is captured and placed into an event channel.  The event
+channel is used to publish events to any number of subscribers to the
+REST API.
 
 == Legal Notices
 
