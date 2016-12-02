@@ -102,7 +102,14 @@ to proxy 100 very small SQL statements (e.g. select /* read */ now()):
 image::docs/proxy-performance.png?raw=true[]
 
 Interestingly, with this design approach, as the size of your SQL statement
-grows, the performance gains increase.  
+grows, the performance gains increase.  This set of results were run
+on a development box configuration as follows:
+
+ * i7 Core 6700K
+ * 32 Gb memory
+ * m.2 NVMe SSD
+
+Execution times averaged around 14ms for *crunchy-proxy* and around 140ms for pgpool.
 
 == Execution
 
