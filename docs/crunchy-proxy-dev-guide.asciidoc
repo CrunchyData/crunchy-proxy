@@ -124,15 +124,13 @@ select /* read */ from foo.....
 /* read */ select from bar......
 ....
 
-A yet to be developed annotation is for the case of a set of stateful SQL
-statements like a transaction.  In that case there will be another
-annotation:
+In the case of a transaction, all SQL statements within a begin block will 
+be sent to a single backend.
 ....
-/* read,stateful */ begin; select .....; commit;
+/* read */ begin; select .....; commit;
+begin; select .....; commit;
 ....
 
-In that case, the entire set of SQL statements would be sent to the same
-backend.
 
 === Health Checking
 

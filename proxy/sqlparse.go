@@ -60,7 +60,7 @@ func IsWriteAnno(buf []byte) bool {
 	startPos := bytes.Index(buf, START)
 	endPos := bytes.Index(buf, END)
 	if startPos < 0 || endPos < 0 {
-		log.Println("no comment found..assuming write case")
+		log.Println("no comment found..assuming write case and stateful")
 		return true
 	}
 	startPos = startPos + 5 //add 5 for msg header length

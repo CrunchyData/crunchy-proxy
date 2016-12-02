@@ -29,11 +29,13 @@ func main() {
 	log.Println("main starting...")
 
 	var rows, hostport, userid, password, database string
+	var count int
 	flag.StringVar(&rows, "rows", "onerow", "onerow or tworows")
 	flag.StringVar(&hostport, "hostport", "localhost:5432", "host:port")
 	flag.StringVar(&userid, "userid", "postgres", "postgres userid")
 	flag.StringVar(&password, "password", "password", "postgres password")
 	flag.StringVar(&database, "database", "postgres", "database")
+	flag.IntVar(&count, "count", 1, "number of executions")
 	flag.Parse()
 
 	var conn *sql.DB
@@ -57,7 +59,9 @@ func main() {
 
 	switch rows {
 	case "onerow":
-		OneRow(conn)
+		for i := 0; i < count; i++ {
+			OneRow(conn)
+		}
 		break
 	case "tworows":
 		TwoRows(conn)
