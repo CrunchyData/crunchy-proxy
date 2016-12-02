@@ -1,4 +1,4 @@
-= Design Guide - Crunchy Proxy
+= Develper Guide - Crunchy Proxy
 Crunchy Data Solutions, Inc.
 v0.0.1, {docdate}
 image::crunchy_logo.png?raw=true[]
@@ -38,6 +38,101 @@ The example shows a message traveling down this path:
 
 *pg client->proxy->pg server->proxy->pg client*
 
+=== Packages
+
+The proxy code is implemented in these golang packages:
+
+.proxy golang packages
+[width="90%",frame="topbot",cols="30,70", options="header"]
+|======================
+|Package Name | Purpose
+|adapter        |adapters can be applied to in-bound and out-bound message flows to do add capabilities like logging or auditing
+|admin        |the administration interface, a REST API 
+|config        |the configuration file format
+|proxy        |the main proxy processing
+|testclient        | a test client that uses libpq, useful for testing
+|tests        | standalone unit tests
+|======================
+
+=== Makefile Targets
+
+The Makefile has the following targets defined:
+
+.Makefile targets
+[width="90%",frame="topbot",cols="30,70", options="header"]
+|======================
+|Makefile Target | Purpose
+|gendeps        |calls godep to generate dependencies for golang compilation
+|docsbuild        |calls asciidoctor to generate PDF and HTML versions of the documentation
+|clean        |removes the proxy binaries 
+|dockerimage        |builds the docker image for the proxy
+|push        | pushes the docker image to dockerhub
+|run        | runs the proxy in foreground using the default configuration file
+|test        | executes the standalone unit tests
+|======================
+
+=== Connection Pooling
+
+Each backend (master and replica(s)) that is defined in the proxy 
+configuration file has a connection pool provisioned for it.  
+The connection pool is a fixed size currently and established before 
+the proxy begins to accept connections from clients.
+
+The connections in the pool are determined by the pool settings
+found within the configuration parameters *credentials* and *pool*.
+
+Currently only a basic PostgreSQL authentication is allowed using
+username and password.
+
+As client requests come into the proxy, the proxy will choose
+which backend to route the SQL statement to, then pick a free 
+connection from the backend's connection pool.
+
+For each connection pool there is a golang channel defined to
+manage which connections are available for use when processing a SQL
+statement.  After the SQL statement is processed, the connection is
+returned to the pool.  You can think of the pool's channel as a 
+queue of available connections.
+
+=== Client Authentication
+
+Each client must authenticate against the master backend before the
+proxy will process future client requests.  The proxy does not include
+an authentication store itself, but instead relies on the master
+backend to perform authentication.
+
+Once a client does authenticate, the proxy will terminate the client's
+connection to the master and subsequently begin using the connections
+from the connection pools.
+
+=== Annotations
+
+SQL statements that include a SQL comment of a particular format
+will be used to determine the routing of a SQL statement either to
+a master or a replica.
+
+This formatted comment can appear anywhere in a SQL statement but
+it is generally better to place it at the front of the SQL statement
+to be easy to read and locate.
+
+If an annotation is not found in a SQL statement, the the SQL statement
+is assumed to routed to the master by default.
+
+Examples of annotations look like this:
+....
+select /* read */ from foo.....
+/* read */ select from bar......
+....
+
+A yet to be developed annotation is for the case of a set of stateful SQL
+statements like a transaction.  In that case there will be another
+annotation:
+....
+/* read,stateful */ begin; select .....; commit;
+....
+
+In that case, the entire set of SQL statements would be sent to the same
+backend.
 
 
 == Legal Notices
