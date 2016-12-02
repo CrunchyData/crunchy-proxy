@@ -42,7 +42,7 @@ cluster replica members.  Remember, in PostgreSQL cluster replica
 members are only able to process SQL that is *read-only* in nature.
 
 For *crunchy-proxy* we have taken a different approach to SQL routing.
-Instead of parsing the entire SQL grammer of each SQL statement, *crunchy-proxy* uses a simple annotation, supplied by the end-user within their SQL
+Instead of parsing the entire SQL grammer of each SQL statement, *crunchy-proxy* looks for a simple annotation, supplied by the end-user within their SQL
 statement, to determine the routing destination.
 
 For example, the following SQL statement is annotated to indicate it
@@ -76,7 +76,24 @@ The upside of this design choice includes:
  * huge increase in proxy throughput
  * better routing accuracy
 
+== Protocol Aware
+
+*crunchy-proxy* implements enough of the PostgreSQL wire protocol in
+order to examine messages related to authentication and SQL statements.
+The following resources were extremely useful in understanding the
+wire protocol and how portions of it could be implemented for this
+project:
+
+ * link:https://www.pgcon.org/2014/schedule/attachments/330_postgres-for-the-wire.pdf[https://www.pgcon.org/2014/schedule/attachments/330_postgres-for-the-wire.pdf]
+ * link:https://www.postgresql.org/docs/current/static/protocol.html[https://www.postgresql.org/docs/current/static/protocol.html]
+ * link:https://github.com/lib/pq[https://github.com/lib/pq]
+
+By working at the wire protocol level, *crunchy-proxy* can implement a
+variety of features important for high speed proxy handling and for
+supporting PostgreSQL features to the fullest extent.
+
 == Performance
+
 
 Comparing the throughtput of *crunchy-proxy* to pgpool, the performance
 gains are promising, here is chart that shows the time it takes
