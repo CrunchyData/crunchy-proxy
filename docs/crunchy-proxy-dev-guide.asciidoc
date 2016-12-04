@@ -124,12 +124,12 @@ select /* read */ from foo.....
 /* read */ select from bar......
 ....
 
-In the case of a transaction, all SQL statements within a begin block will 
+In the case of a transaction, all SQL statements within a *start* block will 
 be sent to a single backend. This feature is *not implemented yet*, but would
-likely use an annotation to denote a transaction:
+look something like this:
 ....
-/* txn, read */ begin; select .....; commit;
-begin /*txn*/; select .....; commit;
+/* start, read */ begin; select .....; commit /*finish*/;
+begin /*start*/; select .....; commit /*finish*/;
 ....
 
 
