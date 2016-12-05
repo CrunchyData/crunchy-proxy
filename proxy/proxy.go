@@ -66,6 +66,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 	var nextNode *config.Node
 	var backendConn *net.TCPConn
 	var poolIndex int
+	var statementBlock = false
 
 	for {
 
@@ -97,16 +98,27 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			poolIndex = -1
 			writeCase, startCase, finishCase = IsWriteAnno(masterBuf)
 			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
-			nextNode, err = cfg.GetNextNode(writeCase)
-			if err != nil {
-				glog.Errorln(err.Error())
-				return
-			}
-			//get pool index from pool channel
-			poolIndex = <-nextNode.Pool.Channel
+			if statementBlock {
+				glog.V(2).Infof("inside a statementBlock") //keep using the same node and connection
+			} else {
+				if startCase {
+					statementBlock = true
+				}
+				nextNode, err = cfg.GetNextNode(writeCase)
+				if err != nil {
+					glog.Errorln(err.Error())
+					return
+				}
+				//get pool index from pool channel
+				poolIndex = <-nextNode.Pool.Channel
 
-			glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
-			backendConn = nextNode.Pool.Connections[poolIndex]
+				glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
+				backendConn = nextNode.Pool.Connections[poolIndex]
+			}
+			if finishCase {
+				statementBlock = false
+				glog.V(2).Infof("outside a statementBlock")
+			}
 
 			nextNode.Stats.Queries = nextNode.Stats.Queries + 1
 

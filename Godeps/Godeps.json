@@ -20,6 +20,10 @@
 			"Rev": "4f1814e6e38174c46a6cccdda906987d04b735f6"
 		},
 		{
+			"ImportPath": "github.com/golang/glog",
+			"Rev": "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+		},
+		{
 			"ImportPath": "github.com/lib/pq",
 			"Comment": "go1.0-cutoff-117-g50761b0",
 			"Rev": "50761b0867bd1d9d069276790bcd4a3bccf2324a"
