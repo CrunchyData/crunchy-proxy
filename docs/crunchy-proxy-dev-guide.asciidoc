@@ -124,14 +124,14 @@ select /* read */ from foo.....
 /* read */ select from bar......
 ....
 
-In the case of a transaction, all SQL statements within a *start* block will 
-be sent to a single backend. This feature is *not implemented yet*, but would
-look something like this:
+There are cases such as a transaction where you want all the SQL
+statements to route to the same backend.  To support this case,
+you can include a *start* annotation in your first SQL statement
+and a *finish* annotation in the last SQL statement such as:
 ....
 /* start, read */ begin; select .....; commit /*finish*/;
 begin /*start*/; select .....; commit /*finish*/;
 ....
-
 
 === Health Checking
 
