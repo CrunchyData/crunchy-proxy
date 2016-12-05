@@ -18,30 +18,7 @@ package proxy
 import (
 	"bytes"
 	"github.com/golang/glog"
-	"strings"
 )
-
-var WRITE_COMMANDS = []string{"INSERT",
-	"DELETE", "UPSERT", "UPDATE", "CREATE",
-	"DROP", "ALTER", "COPY"}
-
-func IsWrite(buf []byte) bool {
-	var msgLen int32
-	var query string
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	query = string(buf[5:msgLen])
-	glog.V(2).Infoln("IsWrite: msglen=%d query=%s\n", msgLen, query)
-	upperQuery := strings.ToUpper(query)
-
-	for i := range WRITE_COMMANDS {
-		if strings.Contains(upperQuery, WRITE_COMMANDS[i]) {
-			glog.V(2).Infoln(WRITE_COMMANDS[i] + " was parsed out of query")
-			return true
-		}
-	}
-
-	return false
-}
 
 var START = []byte{'/', '*'}
 var END = []byte{'*', '/'}
@@ -49,9 +26,12 @@ var END = []byte{'*', '/'}
 //the annotation approach
 //assume a write if there is no comment in the SQL
 //or if there are no keywords in the comment
-func IsWriteAnno(buf []byte) bool {
+// return (write, start, finish) booleans
+func IsWriteAnno(buf []byte) (write bool, start bool, finish bool) {
+	write, start, finish = false, false, false
 	var msgLen int32
 	var query string
+
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	query = string(buf[5:msgLen])
 	glog.V(2).Infof("IsWrite: msglen=%d query=%s\n", msgLen, query)
@@ -61,7 +41,8 @@ func IsWriteAnno(buf []byte) bool {
 	endPos := bytes.Index(buf, END)
 	if startPos < 0 || endPos < 0 {
 		glog.V(2).Infoln("no comment found..assuming write case and stateful")
-		return true
+		write = true
+		return write, start, finish
 	}
 	startPos = startPos + 5 //add 5 for msg header length
 	endPos = endPos + 5     //add 5 for msg header length
@@ -70,8 +51,6 @@ func IsWriteAnno(buf []byte) bool {
 	glog.V(2).Infof("comment=[%s]\n", string(comment))
 
 	keywords := bytes.Split(comment, []byte(","))
-	var stateful = false
-	var write = true
 	var keywordFound = false
 	for i := 0; i < len(keywords); i++ {
 		glog.V(2).Infof("keyword=[%s]\n", string(bytes.TrimSpace(keywords[i])))
@@ -85,16 +64,22 @@ func IsWriteAnno(buf []byte) bool {
 			write = true
 			keywordFound = true
 		}
-		if string(bytes.TrimSpace(keywords[i])) == "stateful" {
-			glog.V(2).Infoln("stateful was found")
-			stateful = true
+		if string(bytes.TrimSpace(keywords[i])) == "start" {
+			glog.V(2).Infoln("start was found")
+			start = true
+			keywordFound = true
+		}
+		if string(bytes.TrimSpace(keywords[i])) == "finish" {
+			glog.V(2).Infoln("finish was found")
+			finish = true
 			keywordFound = true
 		}
 	}
-	glog.V(2).Infof("write=%t stateful=%t\n", write, stateful)
+
+	glog.V(2).Infof("write=%t start=%t finish=%t\n", write, start, finish)
 	if keywordFound == false {
 		glog.V(2).Infoln("no keywords found in SQL comment..assuming write")
 	}
 
-	return write
+	return write, start, finish
 }

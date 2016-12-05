@@ -61,7 +61,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 	var writeLen int
 	var readLen int
 	var msgType string
-	var writeCase = false
+	var writeCase, startCase, finishCase = false, false, false
 	var reqLen int
 	var nextNode *config.Node
 	var backendConn *net.TCPConn
@@ -95,7 +95,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			return
 		} else if msgType == "Q" {
 			poolIndex = -1
-			writeCase = IsWriteAnno(masterBuf)
+			writeCase, startCase, finishCase = IsWriteAnno(masterBuf)
+			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
 			nextNode, err = cfg.GetNextNode(writeCase)
 			if err != nil {
 				glog.Errorln(err.Error())
