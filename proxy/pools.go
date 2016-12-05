@@ -20,7 +20,7 @@ import (
 )
 
 func ReturnConnection(ch chan int, connIndex int) {
-	glog.V(2).Infoln("returning poolIndex %d\n", connIndex)
+	glog.V(2).Infof("returning poolIndex %d\n", connIndex)
 	ch <- connIndex
 }
 
