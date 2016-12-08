@@ -70,21 +70,13 @@ supporting PostgreSQL features to the fullest extent.
 
 == Performance
 
-Comparing the throughtput of *crunchy-proxy* to pgpool, the performance
-gains are promising, here is chart that shows the time it takes
-to proxy 100 very small SQL statements (e.g. select /* read */ now()):
-
-image::docs/proxy-performance.png?raw=true[]
+At this stage of development, *crunchy-proxy* performance
+is promising, currently for example it takes roughly 14 milliseconds on
+a cheap development box (e.g. i7 Core 6700K, SSD)
+to process 100 very small SQL statements (e.g. select /* read */ now()).
 
 Interestingly, with this design approach, as the size of your SQL statement
-grows, the performance gains increase.  This set of results were run
-on a development box configuration as follows:
-
- * i7 Core 6700K
- * 32 Gb memory
- * m.2 NVMe SSD
-
-Execution times averaged around 14ms for *crunchy-proxy* and around 140ms for pgpool.
+grows, the performance gains increase. 
 
 == Execution
 
