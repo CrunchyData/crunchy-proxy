@@ -1,23 +1,22 @@
-= Develper Guide - Crunchy Proxy
+= Developer Guide - Crunchy Proxy
 Crunchy Data Solutions, Inc.
 v0.0.1, {docdate}
 image::crunchy_logo.png?raw=true[]
 
 == Building
 
-Here are the steps to build the proxy from source, assuming
-an installation directory of *$HOME/gdev*:
+Assuming an installation directory of *$HOME/gdev*, please follow the following steps to build *crunchy proxy* from source:
 ....
 mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
 export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN
 ....
 
-Install a golang compiler, here is one way:
+First, install a golang compiler. As an example, it is possible to:
 ....
 sudo yum -y install golang 
 ....
 
-Next, go get the source code:
+Next, pull the source code as follows:
 ....
 cd gdev/src
 go get github.com/tools/godep
@@ -26,7 +25,7 @@ cd github.com/crunchydata
 git clone git@github.com:CrunchyData/crunchy-proxy.git
 ....
 
-Lastly, build the binary:
+Next, build the binary as follows:
 ....
 cd crunchy-proxy
 godep restore
@@ -40,7 +39,7 @@ The example shows a message traveling down this path:
 
 === Packages
 
-The proxy code is implemented in these golang packages:
+The proxy code is implemented in the following golang packages:
 
 .proxy golang packages
 [width="90%",frame="topbot",cols="30,70", options="header"]
@@ -73,50 +72,35 @@ The Makefile has the following targets defined:
 
 === Connection Pooling
 
-Each backend (master and replica(s)) that is defined in the proxy 
-configuration file has a connection pool provisioned for it.  
-The connection pool is a fixed size currently and established before 
-the proxy begins to accept connections from clients.
+*crunchy proxy* provisions a connection pool for each backend (master and replica(s)) that is defined in the proxy 
+configuration file.  The connection pool is a fixed size currently and established before the proxy begins to accept connections from clients.
 
-The connections in the pool are determined by the pool settings
-found within the configuration parameters *credentials* and *pool*.
+The connections in the pool are determined by the pool settings found within the configuration parameters *credentials* and *pool*.
 
-Currently only a basic PostgreSQL authentication is allowed using
-username and password.
+Currently *crunchy proxy* only supports basic PostgreSQL password authentication using username and password.
 
-As client requests come into the proxy, the proxy will choose
-which backend to route the SQL statement to, then pick a free 
-connection from the backend's connection pool.
+As client requests come into the proxy, the proxy will choose to which backend to route the SQL statement and then pick a free connection from the backend's 
+connection pool.
 
-For each connection pool there is a golang channel defined to
-manage which connections are available for use when processing a SQL
-statement.  After the SQL statement is processed, the connection is
-returned to the pool.  You can think of the pool's channel as a 
-queue of available connections.
+For each connection pool there is a golang channel defined to manage which connections are available for use when processing a SQL statement.  
+After the SQL statement is processed, the connection is returned to the pool.  You can think of the pool's channel as a queue of available connections.
 
 === Client Authentication
 
-Each client must authenticate against the master backend before the
-proxy will process future client requests.  The proxy does not include
-an authentication store itself, but instead relies on the master
-backend to perform authentication.
+Each client must authenticate against the master backend before the proxy will process future client requests.  *crunchy proxy* does not include
+an authentication store itself, but instead relies on the master backend to perform authentication.
 
-Once a client does authenticate, the proxy will terminate the client's
-connection to the master and subsequently begin using the connections
+Once a client does authenticate, the proxy will terminate the client's connection to the master and subsequently begin using the connections 
 from the connection pools.
 
 === Annotations
 
-SQL statements that include a SQL comment of a particular format
-will be used to determine the routing of a SQL statement either to
-a master or a replica.
+SQL statements that include a SQL comment of a particular format will be used to determine the routing of a SQL statement either to a master or a replica.
 
-This formatted comment can appear anywhere in a SQL statement but
-it is generally better to place it at the front of the SQL statement
-to be easy to read and locate.
+While the formatted comment can appear anywhere in a SQL statement, in ordre to improve readability and ability to locate the statement, Crunchy recommends 
+placing the comment at the front of the SQL statement
 
-If an annotation is not found in a SQL statement, the the SQL statement
-is assumed to routed to the master by default.
+If no annocation is found in a SQL statement, *crunchy proxy* routes the the SQL statement to the master by default.
 
 Examples of annotations look like this:
 ....
@@ -124,10 +108,10 @@ select /* read */ from foo.....
 /* read */ select from bar......
 ....
 
-There are cases such as a transaction where you want all the SQL
-statements to route to the same backend.  To support this case,
-you can include a *start* annotation in your first SQL statement
-and a *finish* annotation in the last SQL statement such as:
+In certain circumstances, it may be desriable to route all the SQL statements within a transaction to the same backend.  
+
+In order to support this case, it is possible include a *start* annotation in the first SQL statement and a *finish* annotation in the last SQL statement 
+as follows:
 ....
 /* start, read */ begin; select .....; commit /*finish*/;
 begin /*start*/; select .....; commit /*finish*/;
@@ -135,19 +119,16 @@ begin /*start*/; select .....; commit /*finish*/;
 
 === Health Checking
 
-The status of a backend is checked in a separate goroutine that runs
-until the proxy exits.  That status is simplistic currently, essentially
-whether or not the backend can process a SQL statement determines
-whether the health of the backend is good or bad.  This health check
-is performed every few seconds on each backend.
+The status of a backend is checked in a separate goroutine that runs until the proxy exits.  
 
-As the status of a backend changes, the global configuration is
-updated.  The backend status checked by the active connection
-processing to determine which backends are available to process
-a SQL statement.
+The status health check is currently a simple implementation - essentially determining only whether the backend can process a SQL statement.  
 
-Health status is captured and placed into an event channel.  The event
-channel is used to publish events to any number of subscribers to the
+This health check is performed every few seconds on each backend.
+
+As the status of a backend changes, the global configuration is updated.  The backend status checked by the active connection processing in order to 
+determine which backends are available to processa SQL statement.
+
+Health status is captured and placed into an event channel.  The event channel is used to publish events to any number of subscribers to the
 REST API.
 
 == Legal Notices
