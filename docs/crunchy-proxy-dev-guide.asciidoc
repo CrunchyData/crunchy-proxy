@@ -70,6 +70,21 @@ The Makefile has the following targets defined:
 |test        | executes the standalone unit tests
 |======================
 
+=== Wire Protocol
+
+*crunchy-proxy* operates at the PostgreSQL wire protocol (network) layer to understand
+PostgreSQL client authentication requests and SQL statements passed
+by a client to a PostgreSQL backend.
+
+The proxy does very little processing of the messages sent between
+a client and an actual backend, mostly examining the SQL statements
+for a proxy-specific annotation.  The annotation is used to route
+the message to the backend.
+
+Its important to note that the proxy does not implement all features
+of libpq or provide an application interface similar to a JDBC driver
+or other language driver.
+
 === Connection Pooling
 
 *crunchy proxy* provisions a connection pool for each backend (master and replica(s)) that is defined in the proxy 
