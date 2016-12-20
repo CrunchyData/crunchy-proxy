@@ -25,8 +25,10 @@ import (
 	"net"
 )
 
-func ProtocolMsgType(buf []byte) string {
-	return string(buf[0])
+func ProtocolMsgType(buf []byte) (string, int) {
+	msgLen := int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+	glog.V(2).Infof("[protocol] %d msgLen\n", msgLen)
+	return string(buf[0]), int(msgLen)
 }
 
 func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
@@ -248,7 +250,7 @@ func Authenticate(cfg *config.Config, node *config.Node, conn *net.TCPConn) {
 
 	//should get back an AuthenticationRequest 'R'
 	LogProtocol("<--", "pool node", buf, len(buf))
-	msgType := ProtocolMsgType(buf)
+	msgType, msgLen := ProtocolMsgType(buf)
 	if msgType != "R" {
 		glog.Errorln("pool error: should have got R message here")
 	}
@@ -271,8 +273,8 @@ func Authenticate(cfg *config.Config, node *config.Node, conn *net.TCPConn) {
 		glog.Errorln(err.Error() + " at this pt3")
 	}
 
-	msgType = ProtocolMsgType(buf)
-	glog.V(2).Infoln("after passwordmsg got msgType " + msgType)
+	msgType, msgLen = ProtocolMsgType(buf)
+	glog.V(2).Infof("after passwordmsg got msgType %s msgLen=%d\n", msgType, msgLen)
 	if msgType == "R" {
 		LogProtocol("<--", "AuthenticationOK", buf, readLen)
 	}

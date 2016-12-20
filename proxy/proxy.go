@@ -61,6 +61,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 	var writeLen int
 	var readLen int
 	var msgType string
+	var msgLen int
 	var writeCase, startCase, finishCase = false, false, false
 	var reqLen int
 	var nextNode *config.Node
@@ -76,7 +77,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			return
 		}
 
-		msgType = ProtocolMsgType(masterBuf)
+		msgType, msgLen = ProtocolMsgType(masterBuf)
+		glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, reqLen)
 		LogProtocol("-->", "", masterBuf, reqLen)
 
 		glog.V(2).Infoln("here is a new msgType=" + msgType)
@@ -124,12 +126,19 @@ func handleClient(cfg *config.Config, client net.Conn) {
 
 			writeLen, err = backendConn.Write(masterBuf[:reqLen])
 			glog.V(2).Infof("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)
-			glog.V(2).Infof("read masterBuf readLen=%d\n", readLen)
 			if err != nil {
 				glog.Errorln(err.Error())
 				glog.Errorln("[proxy] error here")
 			}
-			readLen, err = backendConn.Read(masterBuf)
+
+			//write the query to backend then read and write
+			//till we get Q from the backend
+
+			//for {
+			err = processBackend(client, backendConn, masterBuf)
+			//readLen, err = backendConn.Read(masterBuf)
+			//msgType, msgLen = ProtocolMsgType(masterBuf)
+			//glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
 			if poolIndex != -1 {
 				ReturnConnection(nextNode.Pool.Channel, poolIndex)
 			}
@@ -156,13 +165,18 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				}
 			}
 
-			writeLen, err = client.Write(masterBuf[:readLen])
-			if err != nil {
-				glog.V(2).Infoln("[proxy] closing client conn" + err.Error())
-				return
-			}
+			//writeLen, err = client.Write(masterBuf[:readLen])
+			//glog.V(2).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
+			//if err != nil {
+			//glog.V(2).Infoln("[proxy] closing client conn" + err.Error())
+			//return
+			//}
+			//if msgType == "Z" {
+			//	glog.V(2).Infof("ReadyForQuery was read from backend")
+			//	break
+			//}
+			//}
 
-			glog.V(2).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
 		} else {
 
 			glog.V(2).Infoln("XXXX msgType here is " + msgType)
@@ -173,7 +187,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				glog.Errorln("master WriteRead error:" + err.Error())
 			}
 
-			msgType = ProtocolMsgType(masterBuf)
+			msgType, msgLen = ProtocolMsgType(masterBuf)
+			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
 
 			//write to client only the master response
 			writeLen, err = client.Write(masterBuf[:readLen])
@@ -236,3 +251,29 @@ func RecvMessage(conn *net.TCPConn, r *[]byte) (byte, error) {
 	return t, nil
 }
 */
+
+func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
+	var writeLen, msgLen, readLen int
+	var msgType string
+	var err error
+
+	for {
+		readLen, err = backendConn.Read(masterBuf)
+		for startPos := 0; startPos < readLen; {
+			msgType, msgLen = ProtocolMsgType(masterBuf[startPos:])
+			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
+			msgLen = msgLen + 1 //add 1 for the message first byte
+
+			writeLen, err = client.Write(masterBuf[startPos : msgLen+startPos])
+			glog.V(2).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
+			startPos = startPos + msgLen
+			glog.V(2).Infof("[proxy] startPos is now %d\n", startPos)
+		}
+		if msgType == "Z" {
+			glog.V(2).Infof("[proxy] Z msg found")
+			return err
+		}
+	}
+
+	return err
+}

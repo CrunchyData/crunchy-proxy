@@ -31,6 +31,7 @@ func connect(cfg *config.Config, client net.Conn) error {
 	masterBuf := make([]byte, 4096)
 	var masterReadLen int
 	var msgType string
+	var msgLen int
 	var err error
 	var clientLen int
 
@@ -56,10 +57,10 @@ func connect(cfg *config.Config, client net.Conn) error {
 	LogProtocol("<--", "master", masterBuf, masterReadLen)
 	//here you will get an R authrequest or an N notice from the master
 
-	msgType = ProtocolMsgType(masterBuf)
+	msgType, _ = ProtocolMsgType(masterBuf)
 	if msgType == "N" {
 		//write to client only the master "N" response
-		msgType = ProtocolMsgType(masterBuf)
+		msgType, _ = ProtocolMsgType(masterBuf)
 		glog.V(2).Infoln("sending N to client")
 		_, err = client.Write(masterBuf[:masterReadLen])
 		if err != nil {
@@ -79,7 +80,7 @@ func connect(cfg *config.Config, client net.Conn) error {
 		if err != nil {
 			glog.Errorln("master WriteRead error:" + err.Error())
 		}
-		msgType = ProtocolMsgType(masterBuf)
+		msgType, _ = ProtocolMsgType(masterBuf)
 
 		glog.V(2).Infoln("read from master after N msgType=" + msgType)
 
@@ -88,8 +89,9 @@ func connect(cfg *config.Config, client net.Conn) error {
 	//
 	//send R authentication request to client
 	//
-	msgType = ProtocolMsgType(masterBuf)
-	glog.V(2).Infoln("sending msgType to client:" + msgType)
+	msgType, msgLen = ProtocolMsgType(masterBuf)
+	glog.V(2).Infoln("sending msgType to client: %s msgLen=%d\n",
+		msgType, msgLen)
 	glog.V(2).Infoln("should be R Auth msg here send R auth to client")
 	_, err = client.Write(masterBuf[:masterReadLen])
 	if err != nil {
@@ -114,7 +116,7 @@ func connect(cfg *config.Config, client net.Conn) error {
 	if err != nil {
 		glog.Errorln("master WriteRead error:" + err.Error())
 	}
-	msgType = ProtocolMsgType(masterBuf)
+	msgType, msgLen = ProtocolMsgType(masterBuf)
 	glog.V(2).Infoln("pt 5 got msgType " + msgType)
 	if msgType == "R" {
 		LogProtocol("<--", "AuthenticationOK", masterBuf, masterReadLen)
