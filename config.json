@@ -3,6 +3,8 @@
     "IPAddr": "localhost:5432",
     "AdminIPAddr": "localhost:10000",
     "ReadAnnotation": "read",
+    "StartAnnotation": "start",
+    "FinishAnnotation": "finish",
     "healthcheck": {
         "delay": 60,
         "query": "select now()"

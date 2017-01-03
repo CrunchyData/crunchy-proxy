@@ -65,17 +65,19 @@ type Node struct {
 }
 
 type Config struct {
-	Name           string          `json:"name"`
-	IPAddr         string          `json:"ipaddr"`      //listen on host:port
-	AdminIPAddr    string          `json:"adminipaddr"` //listen on host:port
-	ReadAnnotation string          `json:"readannotation"`
-	Credentials    PGCredentials   `json:"credentials"`
-	Pool           PoolConfig      `json:"pool"`
-	Master         Node            `json:"master"`
-	Replicas       []Node          `json:"replicas"`
-	Adapters       []string        `json:"adapters"`
-	Healthcheck    Healthcheck     `json:"healthcheck"`
-	Adapter        adapter.Adapter `json:"-"`
+	Name             string          `json:"name"`
+	IPAddr           string          `json:"ipaddr"`      //listen on host:port
+	AdminIPAddr      string          `json:"adminipaddr"` //listen on host:port
+	ReadAnnotation   string          `json:"readannotation"`
+	StartAnnotation  string          `json:"startannotation"`
+	FinishAnnotation string          `json:"finishannotation"`
+	Credentials      PGCredentials   `json:"credentials"`
+	Pool             PoolConfig      `json:"pool"`
+	Master           Node            `json:"master"`
+	Replicas         []Node          `json:"replicas"`
+	Adapters         []string        `json:"adapters"`
+	Healthcheck      Healthcheck     `json:"healthcheck"`
+	Adapter          adapter.Adapter `json:"-"`
 }
 
 func (c Config) Print() {
@@ -170,7 +172,15 @@ func ReadConfig() Config {
 	if cfg.ReadAnnotation == "" {
 		cfg.ReadAnnotation = "read"
 	}
+	if cfg.StartAnnotation == "" {
+		cfg.ReadAnnotation = "start"
+	}
+	if cfg.FinishAnnotation == "" {
+		cfg.FinishAnnotation = "finish"
+	}
 	glog.V(2).Infoln("[config]" + cfg.ReadAnnotation + " is the ReadAnnotation")
+	glog.V(2).Infoln("[config]" + cfg.StartAnnotation + " is the StartAnnotation")
+	glog.V(2).Infoln("[config]" + cfg.FinishAnnotation + " is the FinishAnnotation")
 	return cfg
 }
 

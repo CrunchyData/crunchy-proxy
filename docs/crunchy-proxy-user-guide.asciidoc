@@ -55,6 +55,8 @@ The JSON parameters include:
 |IPAddr        | the proxy host:port to listen to| "localhost:5432"
 |AdminIPAddr        |the proxy admin host:port | "localhost:10000"
 |ReadAnnotation        |the string to use for a read annotation | "read" is the default if not specified
+|StartAnnotation        |the string to use for a start annotation | "start" is the default if not specified
+|FinishAnnotation        |the string to use for a finish annotation | "finish" is the default if not specified
 |heathcheck.delay        |seconds to delay between checks| 60
 |heathcheck.query        |SQL to use for check | "select now()"
 |pool.enabled        |enable connection pooling | true

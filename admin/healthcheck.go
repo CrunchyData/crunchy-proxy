@@ -32,7 +32,7 @@ func StartHealthcheck(c *config.Config) {
 	if c.Healthcheck.Delay == 0 {
 		c.Healthcheck.Delay = 10
 	}
-	glog.V(2).Infoln("[hc]: delay: %d query:%s\n", c.Healthcheck.Delay, c.Healthcheck.Query)
+	glog.V(5).Infoln("[hc]: delay: %d query:%s\n", c.Healthcheck.Delay, c.Healthcheck.Query)
 	var result bool
 	var mutex = &sync.Mutex{}
 	var event ProxyEvent
@@ -80,7 +80,7 @@ func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node con
 	var dbPassword = cred.Password
 	var dbPort = hostport[1]
 	var database = cred.Database
-	glog.V(2).Infoln("[hc] connecting to host:" + dbHost + " port:" + dbPort + " user:" + dbUser + " password:" + dbPassword + " database:" + database)
+	glog.V(5).Infoln("[hc] connecting to host:" + dbHost + " port:" + dbPort + " user:" + dbUser + " password:" + dbPassword + " database:" + database)
 	conn, err = GetDBConnection(dbHost, dbUser, dbPort, database, dbPassword)
 	defer conn.Close()
 
@@ -88,7 +88,7 @@ func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node con
 		glog.Errorln("[hc] healthcheck failed: error: " + err.Error())
 		return false
 	}
-	glog.V(2).Infoln("[hc] got a connection")
+	glog.V(5).Infoln("[hc] got a connection")
 	_, err = conn.Query(hc.Query)
 	if err != nil {
 		glog.Errorln("[hc] failed: error: " + err.Error())
@@ -103,10 +103,10 @@ func GetDBConnection(dbHost string, dbUser string, dbPort string, database strin
 	var err error
 
 	if dbPassword == "" {
-		glog.V(2).Infoln("a open db with dbHost=[" + dbHost + "] dbUser=[" + dbUser + "] dbPort=[" + dbPort + "] database=[" + database + "]")
+		glog.V(5).Infoln("a open db with dbHost=[" + dbHost + "] dbUser=[" + dbUser + "] dbPort=[" + dbPort + "] database=[" + database + "]")
 		dbConn, err = sql.Open("postgres", "sslmode=disable user="+dbUser+" host="+dbHost+" port="+dbPort+" dbname="+database)
 	} else {
-		glog.V(2).Infoln("b open db with dbHost=[" + dbHost + "] dbUser=[" + dbUser + "] dbPort=[" + dbPort + "] database=[" + database + "] password=[" + dbPassword + "]")
+		glog.V(5).Infoln("b open db with dbHost=[" + dbHost + "] dbUser=[" + dbUser + "] dbPort=[" + dbPort + "] database=[" + database + "] password=[" + dbPassword + "]")
 		dbConn, err = sql.Open("postgres", "sslmode=disable user="+dbUser+" host="+dbHost+" port="+dbPort+" dbname="+database+" password="+dbPassword)
 	}
 	if err != nil {

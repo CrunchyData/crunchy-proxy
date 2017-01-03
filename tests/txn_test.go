@@ -31,8 +31,8 @@ func TestTxn(t *testing.T) {
 	}
 
 	var timestamp string
-	_, err = conn.Exec("begin /* start */")
-	err = conn.QueryRow("select /*read */ text(now())").Scan(&timestamp)
+	_, err = conn.Exec("/* start */ begin")
+	err = conn.QueryRow("/* read */ select text(now())").Scan(&timestamp)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Println("no rows returned")
@@ -43,7 +43,7 @@ func TestTxn(t *testing.T) {
 	default:
 		log.Println(timestamp + " was returned")
 	}
-	_, err = conn.Exec("commit /*finish*/")
+	_, err = conn.Exec("/* finish */ commit")
 
 	var endTime = time.Since(startTime)
 	log.Printf("Duration %s\n", endTime)
