@@ -48,7 +48,6 @@ The JSON file is read at startup and is currently not reloaded after
 execution starts.
 
 The JSON parameters include:
-.An example table
 [width="90%",cols="30,40,30", frame="topbot",options="header,footer"]
 |======================
 |Parameter | Purpose | Example
@@ -130,14 +129,11 @@ client.
 
 Overhead of the proxy was measured and shows the following
 for the typical case of handling a SQL statement:
-.Overhead Measurements
-[width="90%",cols="30,40,30", frame="topbot",options="header,footer"]
+[width="90%",cols="30,30,20,20", frame="topbot",options="header,footer"]
 |======================
-|Test | Proxy | No-Proxy | Difference
+|Test | Proxy | No-Proxy | Overhead
 |Single SQL Statement |  2.240026ms | 2.085424ms | +0.154602ms
-
-Overall, this shows a fairly low overhead of the proxy.
-
+|======================
 
 == Proxy Administration
 
