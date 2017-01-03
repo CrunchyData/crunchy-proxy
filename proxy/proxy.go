@@ -39,7 +39,6 @@ func ListenAndServe(config *config.Config) {
 func handleListener(config *config.Config, listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
-		//log.Println("after Accept")
 		if err != nil {
 			continue
 		}
@@ -81,17 +80,13 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, reqLen)
 		LogProtocol("-->", "", masterBuf, reqLen)
 
-		glog.V(2).Infoln("here is a new msgType=" + msgType)
+		glog.V(3).Infoln("here is a new msgType=" + msgType)
 
-		//
 		// adapt inbound data
-		//err = cfg.Adapter.Do(&masterBuf, reqLen)
-		//if err != nil {
-		//log.Println("[proxy] error adapting inbound")
-		//return
-		//}
-
-		//copy(replicaBuf, masterBuf)
+		err = cfg.Adapter.Do(&masterBuf, reqLen)
+		if err != nil {
+			glog.Errorln("[proxy] error adapting inbound" + err.Error())
+		}
 
 		if msgType == "X" {
 			glog.V(2).Infoln("termination msg received")
@@ -133,12 +128,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 
 			//write the query to backend then read and write
 			//till we get Q from the backend
+			err = processBackend(cfg, client, backendConn, masterBuf)
 
-			//for {
-			err = processBackend(client, backendConn, masterBuf)
-			//readLen, err = backendConn.Read(masterBuf)
-			//msgType, msgLen = ProtocolMsgType(masterBuf)
-			//glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
 			if poolIndex != -1 {
 				ReturnConnection(nextNode.Pool.Channel, poolIndex)
 			}
@@ -165,18 +156,6 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				}
 			}
 
-			//writeLen, err = client.Write(masterBuf[:readLen])
-			//glog.V(2).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
-			//if err != nil {
-			//glog.V(2).Infoln("[proxy] closing client conn" + err.Error())
-			//return
-			//}
-			//if msgType == "Z" {
-			//	glog.V(2).Infof("ReadyForQuery was read from backend")
-			//	break
-			//}
-			//}
-
 		} else {
 
 			glog.V(2).Infoln("XXXX msgType here is " + msgType)
@@ -200,12 +179,6 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			glog.V(2).Infof("[proxy] wrote3 to pg client %d\n", writeLen)
 		}
 
-		//err = cfg.Adapter.Do(&masterBuf, readLen) //adapt the outbound msg
-		//if err != nil {
-		//log.Println("[proxy] error adapting outbound msg")
-		//log.Println(err.Error())
-		//}
-
 	}
 	glog.V(2).Infoln("[proxy] closing client conn")
 }
@@ -215,44 +188,7 @@ func checkError(err error) {
 	}
 }
 
-/**
-func RecvMessage(conn *net.TCPConn, r *[]byte) (byte, error) {
-	// workaround for a QueryRow bug, see exec
-	if cn.saveMessageType != 0 {
-		t := cn.saveMessageType
-		*r = cn.saveMessageBuffer
-		cn.saveMessageType = 0
-		cn.saveMessageBuffer = nil
-		return t, nil
-	}
-
-	var scratch [512]byte
-
-	x := scratch[:5]
-	_, err := io.ReadFull(conn, x)
-	if err != nil {
-		return 0, err
-	}
-
-	// read the type and length of the message that follows
-	t := x[0]
-	n := int(binary.BigEndian.Uint32(x[1:])) - 4
-	var y []byte
-	if n <= len(scratch) {
-		y = scratch[:n]
-	} else {
-		y = make([]byte, n)
-	}
-	_, err = io.ReadFull(conn, y)
-	if err != nil {
-		return 0, err
-	}
-	*r = y
-	return t, nil
-}
-*/
-
-func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
+func processBackend(cfg *config.Config, client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
 	var writeLen, msgLen, readLen int
 	var msgType string
 	var err error
@@ -263,11 +199,16 @@ func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte)
 			msgType, msgLen = ProtocolMsgType(masterBuf[startPos:])
 			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
 			msgLen = msgLen + 1 //add 1 for the message first byte
+			//adapt msgs going back to client
+			err = cfg.Adapter.Do(&masterBuf, readLen)
+			if err != nil {
+				glog.Errorln("[proxy] error adapting outbound" + err.Error())
+			}
 
 			writeLen, err = client.Write(masterBuf[startPos : msgLen+startPos])
-			glog.V(2).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
+			glog.V(3).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
 			startPos = startPos + msgLen
-			glog.V(2).Infof("[proxy] startPos is now %d\n", startPos)
+			glog.V(3).Infof("[proxy] startPos is now %d\n", startPos)
 		}
 		if msgType == "Z" {
 			glog.V(2).Infof("[proxy] Z msg found")

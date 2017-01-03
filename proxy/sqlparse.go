@@ -51,12 +51,12 @@ func IsWriteAnno(readAnno string, buf []byte) (write bool, start bool, finish bo
 	endPos = endPos + 5     //add 5 for msg header length
 
 	comment := buf[bytes.Index(querybuf, START)+2+5 : bytes.Index(querybuf, END)+5]
-	glog.V(2).Infof("comment=[%s]\n", string(comment))
+	glog.V(3).Infof("comment=[%s]\n", string(comment))
 
 	keywords := bytes.Split(comment, []byte(","))
 	var keywordFound = false
 	for i := 0; i < len(keywords); i++ {
-		glog.V(2).Infof("keyword=[%s]\n", string(bytes.TrimSpace(keywords[i])))
+		glog.V(3).Infof("keyword=[%s]\n", string(bytes.TrimSpace(keywords[i])))
 		if string(bytes.TrimSpace(keywords[i])) == readAnno {
 			glog.V(2).Infoln("read was found")
 			write = false
@@ -74,9 +74,9 @@ func IsWriteAnno(readAnno string, buf []byte) (write bool, start bool, finish bo
 		}
 	}
 
-	glog.V(2).Infof("write=%t start=%t finish=%t\n", write, start, finish)
+	glog.V(3).Infof("write=%t start=%t finish=%t\n", write, start, finish)
 	if keywordFound == false {
-		glog.V(2).Infoln("no keywords found in SQL comment..assuming write")
+		glog.V(3).Infoln("no keywords found in SQL comment..assuming write")
 		write = true
 	}
 
