@@ -38,8 +38,11 @@ func IsWriteAnno(buf []byte) (write bool, start bool, finish bool) {
 
 	querybuf := buf[5:msgLen]
 	startPos := bytes.Index(buf, START)
+	glog.V(2).Infof("IsWrite: startPos=%d\n", startPos)
 	endPos := bytes.Index(buf, END)
-	if startPos < 0 || endPos < 0 {
+	//adding startPos != 5 forces the annotation to start
+	//at the beginning of the SQL statement
+	if startPos < 0 || startPos != 5 || endPos < 0 {
 		glog.V(2).Infoln("no comment found..assuming write case and stateful")
 		write = true
 		return write, start, finish
