@@ -126,6 +126,19 @@ cd ./testclient
 You can also run the *psql* command against the proxy as a test
 client.
 
+=== Overhead
+
+Overhead of the proxy was measured and shows the following
+for the typical case of handling a SQL statement:
+.Overhead Measurements
+[width="90%",cols="30,40,30", frame="topbot",options="header,footer"]
+|======================
+|Test | Proxy | No-Proxy | Difference
+|Single SQL Statement |  2.240026ms | 2.085424ms | +0.154602ms
+
+Overall, this shows a fairly low overhead of the proxy.
+
+
 == Proxy Administration
 
 There is an administration port created by the proxy that you

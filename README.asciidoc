@@ -5,12 +5,12 @@ image::docs/crunchy_logo.png?raw=true[]
 
 == Project
 
-*crunchy-proxy* is an experimental PostgreSQL-aware proxy used to handle PostgreSQL application requests.  The diagram below depicts a PostgreSQL client application connecting to the crunchy-proxy, which appears to the PostgreSQL application as any other PostgreSQL database connection.  The crunchy-proxy accepts the inbound client requests, and routes them to an appropriate PostgreSQL cluster member (as described in more detail below).
+*crunchy-proxy* is a minimal PostgreSQL-aware proxy used to handle PostgreSQL application requests.  The diagram below depicts a PostgreSQL client application connecting to the *crunchy-proxy*, which appears to the PostgreSQL application as any other PostgreSQL database connection.  The *crunchy-proxy* accepts the inbound client requests, and routes them to an appropriate PostgreSQL cluster member (as described in more detail below).
 
 image::docs/proxy-diagram.png?raw=true[]
 
-To the PostgreSQL server, the crunchy-proxy is transparent and appears as any other
-PostgreSQL client would appear.  As described in more detail below, the crunchy-proxy currently provides the following capabilities:
+To the PostgreSQL server, the *crunchy-proxy* is transparent and appears as any other
+PostgreSQL client would appear.  As described in more detail below, the *crunchy-proxy* currently provides the following capabilities:
 
  * ability to route messages based on the SQL command type - writes are
    sent to a master and reads are sent to replicas in a round-robin fashion
@@ -26,11 +26,11 @@ As described under "Approach" below, implementation of the *crunchy-proxy* requi
 
 == Approach
 
-One of the key features of the *crunchy-proxy* is the ability of the crunchy-proxy to route different SQL statements to a PostgreSQL cluster members based on certain pre-defined rules.  This capability enables end-user applications to see a PostgreSQL cluster as a single connection.  In order to support this capability, it is necessary that *crunchy-proxy* have knowledge of the SQL statements that a PostgreSQL application sends to PostgreSQL.
+One of the key features of the *crunchy-proxy* is the ability to route different SQL statements to a PostgreSQL cluster members based on certain pre-defined rules.  This capability enables end-user applications to see a PostgreSQL cluster as a single connection.  In order to support this capability, it is necessary that *crunchy-proxy* have knowledge of the SQL statements that a PostgreSQL application sends to PostgreSQL.
 
 One approach to addressing the requirement that a proxy be "SQL aware" (e.g. link:http://www.pgpool.net/mediawiki/index.php/Main_Page[pgpool]) is to first parse each SQL statement looking for grammar that would imply a *write* or *update* and to then send those SQL statements to the cluster master.  SQL statements that are determined to be *read-only* in nature are deemed safe to send to the cluster replica members.  Remember, in PostgreSQL cluster replica  members are only able to process SQL that is *read-only* in nature.
 
-*crunchy-proxy* takes a different approach to SQL routing. Instead of attempting to parse the entire SQL grammer of each SQL statement, *crunchy-proxy* looks for a simple annotation, supplied by the end-user within their SQL statement, to determine the routing destination.
+*crunchy-proxy* takes a different approach to SQL routing. Instead of attempting to parse the entire SQL grammer of each SQL statement, it looks for a simple annotation, supplied by the end-user within their SQL statement, to determine the routing destination.
 
 For example, the following SQL statement is annotated to indicate it
 is a *read-only* SQL statement:
@@ -38,10 +38,10 @@ is a *read-only* SQL statement:
 /* read */ select now();
 ....
 
-Examples of a *write* SQL statement include the following:
+Examples of a write SQL statement include the following:
 ....
 create table boofar (id int);
-drop /* write */ table boofar (id int);
+drop table boofar (id int);
 ....
 
 If a SQL statement does not include an annotation, the the statement is deemed a *write* and thus sent to the master cluster member.
@@ -73,26 +73,24 @@ supporting PostgreSQL features to the fullest extent.
 At this stage of development, *crunchy-proxy* performance
 is promising, currently for example it takes roughly 14 milliseconds on
 a cheap development box (e.g. i7 Core 6700K, SSD)
-to process 100 very small SQL statements (e.g. select /* read */ now()).
+to process 100 very small SQL statements (e.g. /* read */ select now()).
 
 Interestingly, with this design approach, as the size of your SQL statement
 grows, the performance gains increase. 
 
 == Execution
 
-The proxy is a golang binary, if you build the binary from source
-you can run it as follows:
+The proxy is a golang binary, you execute it as follows:
 ....
 crunchyproxy -config=config.json
 ....
 
-Instructions on building from source along with a description of the design
-are found in the link:docs/crunchy-proxy-dev-guide.asciidoc[Developer Guide] 
+Detailed documentation including configuration file format and 
+developer information is 
+found in the link:docs/crunchy-proxy-user-guide.asciidoc[User Guide] 
 
 For Docker users, you can run the proxy using the 
 link:bin/run-docker.sh[run-docker.sh] script.
-
-The link:docs/crunchy-proxy-user-guide.asciidoc[User Guide] describes the configuration file format along with other usage information.
 
 
 == Feedback

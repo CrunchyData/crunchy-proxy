@@ -31,7 +31,7 @@ func TestSelect(t *testing.T) {
 	}
 
 	var timestamp string
-	err = conn.QueryRow("select /*read */ text(now())").Scan(&timestamp)
+	err = conn.QueryRow("/* read */ select text(now())").Scan(&timestamp)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Println("no rows returned")
