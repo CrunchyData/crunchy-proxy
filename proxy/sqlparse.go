@@ -62,11 +62,6 @@ func IsWriteAnno(buf []byte) (write bool, start bool, finish bool) {
 			write = false
 			keywordFound = true
 		}
-		if string(bytes.TrimSpace(keywords[i])) == "write" {
-			glog.V(2).Infoln("write was found")
-			write = true
-			keywordFound = true
-		}
 		if string(bytes.TrimSpace(keywords[i])) == "start" {
 			glog.V(2).Infoln("start was found")
 			start = true

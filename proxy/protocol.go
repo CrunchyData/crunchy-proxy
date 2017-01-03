@@ -39,9 +39,7 @@ func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
 		return
 	} else {
 		//log.Printf("protocol dump: hex=%x char=%c all=%s\n", buf[0], buf[0], string(buf[0:bufLen-1]))
-		//msgType = string(buf[0])
 		msgType = buf[0]
-		//msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 		glog.V(2).Infof("[protocol] %s %s [%c]\n", direction, hint, msgType)
 		switch msgType {
 		case 'R':
@@ -135,9 +133,7 @@ func QueryRequest(buf []byte) {
 
 func NoticeResponse(buf []byte) {
 	var msgLen int32
-	//var query string
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	//log.Printf("[protocol] NoticeResponse: msglen=%d\n", msgLen)
 	var fieldType = buf[5]
 	var fieldMsg = string(buf[6:msgLen])
 	glog.V(2).Infof("[protocol] NoticeResponse: msglen=%d fieldType=%x fieldMsg=%s\n", msgLen, fieldType, fieldMsg)
@@ -147,19 +143,12 @@ func RowDescription(buf []byte, bufLen int) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	glog.V(2).Infof("[protocol] RowDescription: msglen=%d\n", msgLen)
-	//query = string(buf[5:msgLen])
 	var data []byte
 
 	data = buf[4+msgLen : bufLen]
 
 	var dataRowType = string(data[0])
 	glog.V(2).Infof("[protocol] datarow type%s found \n", dataRowType)
-	//	msgLen = int32(data[bufPtr+1])<<24 | int32(data[bufPtr+2])<<16 | int32(data[bufPtr+3])<<8 | int32(data[bufPtr+4])
-	//	log.Printf("[protocol] datarow type%s found with msglen=%d\n", dataRowType, msgLen)
-	//
-	//	data = buf[bufPtr : msgLen+5]
-	//	DataRow(data)
-	//	bufPtr = bufPtr + msgLen + 5
 
 }
 func DataRow(buf []byte) {
@@ -172,8 +161,6 @@ func DataRow(buf []byte) {
 	fieldLen = int32(buf[7])<<24 | int32(buf[8])<<16 | int32(buf[9])<<8 | int32(buf[10])
 	fieldValue = string(buf[11 : fieldLen+11])
 	glog.V(2).Infof("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n", numfields, msgLen, fieldLen, fieldValue)
-	//var data = string(buf[7:msgLen])
-	//log.Printf("[protocol] DataRow: data=%s\n", data)
 }
 func CommandComplete(buf []byte) {
 	var msgLen int32
@@ -184,8 +171,6 @@ func TerminateMessage(buf []byte) {
 	var msgLen int32
 	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
 	glog.V(2).Infof("[protocol] Terminate: msglen=%d\n", msgLen)
-	//query = string(buf[5:msgLen])
-	//log.Printf("[protocol] RowDescription: msglen=%d query=%s\n", msgLen, query)
 }
 func GetTerminateMessage() []byte {
 	var buffer []byte

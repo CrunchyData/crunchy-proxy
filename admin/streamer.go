@@ -29,7 +29,6 @@ type ProxyEvent struct {
 var EventChannel []chan ProxyEvent
 
 func init() {
-	//EventChannel = make(chan ProxyEvent, 50)
 	glog.V(2).Infoln("setting up the Event Channel")
 }
 func AddEventSubscriber() chan ProxyEvent {
