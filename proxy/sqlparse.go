@@ -27,7 +27,7 @@ var END = []byte{'*', '/'}
 //assume a write if there is no comment in the SQL
 //or if there are no keywords in the comment
 // return (write, start, finish) booleans
-func IsWriteAnno(buf []byte) (write bool, start bool, finish bool) {
+func IsWriteAnno(readAnno string, buf []byte) (write bool, start bool, finish bool) {
 	write, start, finish = false, false, false
 	var msgLen int32
 	var query string
@@ -57,7 +57,7 @@ func IsWriteAnno(buf []byte) (write bool, start bool, finish bool) {
 	var keywordFound = false
 	for i := 0; i < len(keywords); i++ {
 		glog.V(2).Infof("keyword=[%s]\n", string(bytes.TrimSpace(keywords[i])))
-		if string(bytes.TrimSpace(keywords[i])) == "read" {
+		if string(bytes.TrimSpace(keywords[i])) == readAnno {
 			glog.V(2).Infoln("read was found")
 			write = false
 			keywordFound = true
@@ -77,6 +77,7 @@ func IsWriteAnno(buf []byte) (write bool, start bool, finish bool) {
 	glog.V(2).Infof("write=%t start=%t finish=%t\n", write, start, finish)
 	if keywordFound == false {
 		glog.V(2).Infoln("no keywords found in SQL comment..assuming write")
+		write = true
 	}
 
 	return write, start, finish

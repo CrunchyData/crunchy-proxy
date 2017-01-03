@@ -65,16 +65,17 @@ type Node struct {
 }
 
 type Config struct {
-	Name        string          `json:"name"`
-	IPAddr      string          `json:"ipaddr"`      //listen on host:port
-	AdminIPAddr string          `json:"adminipaddr"` //listen on host:port
-	Credentials PGCredentials   `json:"credentials"`
-	Pool        PoolConfig      `json:"pool"`
-	Master      Node            `json:"master"`
-	Replicas    []Node          `json:"replicas"`
-	Adapters    []string        `json:"adapters"`
-	Healthcheck Healthcheck     `json:"healthcheck"`
-	Adapter     adapter.Adapter `json:"-"`
+	Name           string          `json:"name"`
+	IPAddr         string          `json:"ipaddr"`      //listen on host:port
+	AdminIPAddr    string          `json:"adminipaddr"` //listen on host:port
+	ReadAnnotation string          `json:"readannotation"`
+	Credentials    PGCredentials   `json:"credentials"`
+	Pool           PoolConfig      `json:"pool"`
+	Master         Node            `json:"master"`
+	Replicas       []Node          `json:"replicas"`
+	Adapters       []string        `json:"adapters"`
+	Healthcheck    Healthcheck     `json:"healthcheck"`
+	Adapter        adapter.Adapter `json:"-"`
 }
 
 func (c Config) Print() {
@@ -166,6 +167,10 @@ func ReadConfig() Config {
 		checkError(err)
 	}
 
+	if cfg.ReadAnnotation == "" {
+		cfg.ReadAnnotation = "read"
+	}
+	glog.V(2).Infoln("[config]" + cfg.ReadAnnotation + " is the ReadAnnotation")
 	return cfg
 }
 

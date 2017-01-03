@@ -98,7 +98,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			return
 		} else if msgType == "Q" {
 			poolIndex = -1
-			writeCase, startCase, finishCase = IsWriteAnno(masterBuf)
+			writeCase, startCase, finishCase = IsWriteAnno(cfg.ReadAnnotation, masterBuf)
 			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
 			if statementBlock {
 				glog.V(2).Infof("inside a statementBlock") //keep using the same node and connection
