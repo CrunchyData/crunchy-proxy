@@ -73,6 +73,7 @@ func StartHealthcheck(c *config.Config) {
 func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node config.Node) bool {
 
 	var conn *sql.DB
+	var rows *sql.Rows
 	var err error
 	var hostport = strings.Split(node.IPAddr, ":")
 	var dbHost = hostport[0]
@@ -89,7 +90,8 @@ func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node con
 		return false
 	}
 	glog.V(5).Infoln("[hc] got a connection")
-	_, err = conn.Query(hc.Query)
+	rows, err = conn.Query(hc.Query)
+	defer rows.Close()
 	if err != nil {
 		glog.Errorln("[hc] failed: error: " + err.Error())
 		return false
