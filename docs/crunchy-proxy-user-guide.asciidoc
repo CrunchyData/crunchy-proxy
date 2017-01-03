@@ -3,7 +3,15 @@ Crunchy Data Solutions, Inc.
 v0.0.1, {docdate}
 image::crunchy_logo.png?raw=true[]
 
-== Usage
+== Releases
+
+Users can download a compiled version of *crunchy-proxy* from the
+github repo site in the Releases tab.
+
+A Docker image is also found in the DockerHub at
+https://hub.docker.com/r/crunchydata/crunchy-proxy/
+
+== Command Usage
 
 The command syntax of the proxy is as follows:
 
@@ -12,7 +20,8 @@ crunchyproxy -config=config.json
 ....
 
 The only command option is the *-config* flag.  This option specifies
-the proxy configuration to use.
+the proxy configuration to use.  A sample configuration file
+is located at https://github.com/crunchydata/crunchy-proxy/config.json
 
 The proxy uses link:https://godoc.org/github.com/golang/glog[glog] for logging, to see the log output, run the proxy with this command:
 ....
@@ -23,6 +32,12 @@ Increase the logging level this way:
 ....
 crunchyproxy -config=config.json -logtostderr=true -v 2
 ....
+
+Normal execution does not produce any logging:
+....
+crunchyproxy -config=config.json
+....
+
 
 == Configuration
 
@@ -52,17 +67,18 @@ The JSON parameters include:
 |Replicas.IPAddr| the replica backend hostname:port| "127.0.0.1:12002"
 |======================
 
-== Start the Test PostgreSQL Cluster
+== Testing
 
-Run the database script as follows:
+A test script is provided that will run a PostgreSQL cluster, with
+a single master and replica.  Run the database script as follows:
 ....
 bin/run-cluster.sh
 ....
 
 This will start two docker containers that execute the PostgreSQL cluster.
 
-This will start a Postgres 9.5 master container that listens on
-*localhost:12000* and a replica container that listens on *localhost:12002*
+The Postgres 9.5 master container listens on *localhost:12000* and 
+a replica container listens on *localhost:12002*
 
 The PostgreSQL user id is *postgres*, the password is *password*, and you
 would connect to these container database like this using psql:
@@ -83,9 +99,9 @@ docker start master
 docker start replica
 ....
 
-== Execution
+=== Test Execution
 
-Start the crunchy-proxy like this:
+Start the *crunchy-proxy* like this:
 ....
 go run crunchyproxy.go -config=config.json
 ....
@@ -97,34 +113,17 @@ This will do the following:
  * read config.json and set up a runtime configuration
  * route any client messages to the PostgreSQL containers
 
-== Benchmark
+=== Benchmark
 
-There is a supplied benchmark test you can run, first start
-up a pgpool instance:
-....
-./bin/run-pgpool.sh
-....
-
-Next, run some tests using the pgpool proxy and then the crunchy-proxy:
+For some simple benchmark results, run some tests using the 
+*crunchy-proxy*:
 ....
 cd ./testclient
-./run-test-pgpool.sh
 ./run-test-proxy.sh
 ....
 
-
-=== Test PostgreSQL Client
-
-You can test the proxy using the *psql* PostgreSQL utility or there is a 
-test PostgreSQL client program created when you run the 
-*testclient.go* code.  This is a client that sends messages
-to the proxy and will print out the responses from the proxy.
-
-Run the test pg client like this:
-....
-cd testclient
-./run-test-proxy.sh
-....
+You can also run the *psql* command against the proxy as a test
+client.
 
 == Proxy Administration
 
@@ -143,7 +142,7 @@ curl -i http://localhost:10000/api/stream
 As the proxy publishes events, your REST client (e.g. curl) will receive
 the events.
 
-=== Configuration
+=== Current Configuration
 
 You can get the current configuration of the proxy as follows:
 ....
@@ -156,6 +155,156 @@ You can get the current statistics of the proxy as follows:
 ....
 curl http://localhost:10000/api/stats
 ....
+
+== Compiling the Source
+
+If you are a developer and want to build the proxy from source code,
+follow these steps...
+
+Assuming an installation directory of *$HOME/gdev*, follow the following 
+steps to build *crunchy-proxy* from source:
+....
+mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
+export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN
+....
+
+First, install a golang compiler. As an example, on centos7:
+....
+sudo yum -y install golang 
+....
+
+Next, pull the source code as follows:
+....
+cd gdev/src
+go get github.com/tools/godep
+mkdir github.com/crunchydata
+cd github.com/crunchydata
+git clone git@github.com:CrunchyData/crunchy-proxy.git
+....
+
+Next, build the binary as follows:
+....
+cd crunchy-proxy
+godep restore
+make
+....
+
+== Design
+The example shows a message traveling down this path:
+
+*pg client->proxy->pg server->proxy->pg client*
+
+=== Packages
+
+The proxy code is implemented in the following golang packages:
+
+.proxy golang packages
+[width="90%",frame="topbot",cols="30,70", options="header"]
+|======================
+|Package Name | Purpose
+|adapter        |adapters can be applied to in-bound and out-bound message flows to do add capabilities like logging or auditing
+|admin        |the administration interface, a REST API 
+|config        |the configuration file format
+|proxy        |the main proxy processing
+|testclient        | a test client that uses libpq, useful for testing
+|tests        | standalone unit tests
+|======================
+
+=== Makefile Targets
+
+The Makefile has the following targets defined:
+
+.Makefile targets
+[width="90%",frame="topbot",cols="30,70", options="header"]
+|======================
+|Makefile Target | Purpose
+|gendeps        |calls godep to generate dependencies for golang compilation
+|docsbuild        |calls asciidoctor to generate PDF and HTML versions of the documentation
+|clean        |removes the proxy binaries 
+|dockerimage        |builds the docker image for the proxy
+|push        | pushes the docker image to dockerhub
+|run        | runs the proxy in foreground using the default configuration file
+|test        | executes the standalone unit tests
+|======================
+
+=== Wire Protocol
+
+*crunchy-proxy* operates at the PostgreSQL wire protocol (network) layer to understand
+PostgreSQL client authentication requests and SQL statements passed
+by a client to a PostgreSQL backend.
+
+The proxy does very little processing of the messages sent between
+a client and an actual backend, mostly examining the SQL statements
+for a proxy-specific annotation.  The annotation is used to route
+the message to the backend.
+
+Its important to note that the proxy does not implement all features
+of libpq or provide an application interface similar to a JDBC driver
+or other language driver.
+
+=== Connection Pooling
+
+*crunchy proxy* provisions a connection pool for each backend (master and replica(s)) that is defined in the proxy 
+configuration file.  The connection pool is a fixed size currently and established before the proxy begins to accept connections from clients.
+
+The connections in the pool are determined by the pool settings found within the configuration parameters *credentials* and *pool*.
+
+Currently *crunchy proxy* only supports basic PostgreSQL password authentication using username and password.
+
+As client requests come into the proxy, the proxy will choose to which backend to route the SQL statement and then pick a free connection from the backend's 
+connection pool.
+
+For each connection pool there is a golang channel defined to manage which connections are available for use when processing a SQL statement.  
+After the SQL statement is processed, the connection is returned to the pool.  You can think of the pool's channel as a queue of available connections.
+
+=== Client Authentication
+
+Each client must authenticate against the master backend before the proxy will process future client requests.  *crunchy proxy* does not include
+an authentication store itself, but instead relies on the master backend to perform authentication.
+
+Once a client does authenticate, the proxy will terminate the client's connection to the master and subsequently begin using the connections 
+from the connection pools.
+
+=== Annotations
+
+SQL statements that start with a SQL comment of a particular format will be used to determine the routing of a SQL statement either to a master or a replica.
+
+To simplify the proxy parsing, we require the annotation begin at the
+first byte of the SQL statement as follows:
+....
+/* read */ select from foo.....
+....
+
+If no annocation is found in a SQL statement, *it is assumed the statement
+is a write*.
+
+In certain circumstances, it may be desriable to route all the SQL statements within a transaction to the same backend.  
+
+In order to support this case, it is possible include a *start* annotation in the first SQL statement and a *finish* annotation in the last SQL statement 
+as follows:
+....
+/* start */ begin; 
+select .....; 
+/* finish */commit;
+
+/* start,read */ begin; 
+select .....; 
+/* finish */commit;
+....
+
+=== Health Checking
+
+The status of a backend is checked in a separate goroutine that runs until the proxy exits.  
+
+The status health check is currently a simple implementation - essentially determining only whether the backend can process a SQL statement.  
+
+This health check is performed every few seconds on each backend.
+
+As the status of a backend changes, the global configuration is updated.  The backend status checked by the active connection processing in order to 
+determine which backends are available to processa SQL statement.
+
+Health status is captured and placed into an event channel.  The event channel is used to publish events to any number of subscribers to the
+REST API.
 
 == Legal Notices
 
