@@ -31,6 +31,7 @@ echo "start the load test..."
 
 pgbench -h $HOST -p $PORT \
 	-U postgres -f $DIR/load-test.sql \
-	-t 1 proxydb
+	-c 4 \
+	-t 10 proxydb
 
 echo "load test ends."
