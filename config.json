@@ -19,7 +19,6 @@
         "database": "postgres"
     },
     "Adapters": [
-        "logging"
     ],
     "Master": {
         "IPAddr": "127.0.0.1:12000",

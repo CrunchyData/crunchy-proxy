@@ -83,7 +83,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		glog.V(3).Infoln("here is a new msgType=" + msgType)
 
 		// adapt inbound data
-		err = cfg.Adapter.Do(&masterBuf, reqLen)
+		err = cfg.Adapter.Do(masterBuf, reqLen)
 		if err != nil {
 			glog.Errorln("[proxy] error adapting inbound" + err.Error())
 		}
@@ -200,7 +200,7 @@ func processBackend(cfg *config.Config, client net.Conn, backendConn *net.TCPCon
 			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
 			msgLen = msgLen + 1 //add 1 for the message first byte
 			//adapt msgs going back to client
-			err = cfg.Adapter.Do(&masterBuf, readLen)
+			err = cfg.Adapter.Do(masterBuf, readLen)
 			if err != nil {
 				glog.Errorln("[proxy] error adapting outbound" + err.Error())
 			}
