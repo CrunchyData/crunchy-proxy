@@ -25,12 +25,13 @@ echo "refresh the proxydb database.."
 psql -h $HOST -p $PORT -U postgres -c 'drop database proxydb;' postgres
 psql -h $HOST -p $PORT -U postgres -c 'create database proxydb;' postgres
 pgbench -h localhost -p 12000 -U postgres -i proxydb
+psql -h $HOST -p $PORT -U postgres -c 'create table proxytest (id int, name varchar(20), value varchar(20));' proxydb
 
 echo "start the load test..."
 
 pgbench -h $HOST -p $PORT \
-	-U postgres -f $DIR/load-test.sql \
-	-c 2 \
-	-t 500000 proxydb
+	-U postgres -f $DIR/concurrency-test.sql \
+	-c 4 \
+	-t 100 proxydb
 
-echo "load test ends."
+echo "concurrency test ends."
