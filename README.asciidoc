@@ -52,31 +52,22 @@ In taking this approach, *crunchy-proxy* has assumed (1) a user has access to th
 
 Of course these assumptions introduce certain limitations on the *crunchy-proxy*.  Nonetheless, it was determined that these assumptions will not be unduly limiting in the usability of the *crunchy-proxy* and that the resulting limiations are justified by the benefits of (1) reduction in complexity associated with SQL parsing implementation, (2) increase in proxy throughput and (3) improved routing accuracy of the SQL parsing.
 
-== Protocol Aware
+== PostgreSQL Wire Protocol
 
-*crunchy-proxy* implements portions of the PostgreSQL wire protocol in
-order to examine messages related to authentication and SQL statements.
-The following resources were extremely useful in understanding the
-wire protocol and how portions of it could be implemented for this
-project:
+*crunchy-proxy* operates at the PostgreSQL wire protocol (network) layer to understand PostgreSQL client authentication requests and SQL statements passed by a client to a PostgreSQL backend.
+
+As *crunchy-proxy* uses annotations to route messages to the backend, the proxy primarily examines SQL statements for proxy-specific annotations and does very little processing of the messages sent between a client and an actual backend.
+
+Its important to note that the proxy does not implement all features of libpq or provide an application interface similar to a JDBC driver or other language driver.
+
+The following resources are useful in understanding the PostgreSQL wire protocol:
 
  * link:https://www.pgcon.org/2014/schedule/attachments/330_postgres-for-the-wire.pdf[https://www.pgcon.org/2014/schedule/attachments/330_postgres-for-the-wire.pdf]
  * link:https://www.postgresql.org/docs/current/static/protocol.html[https://www.postgresql.org/docs/current/static/protocol.html]
  * link:https://github.com/lib/pq[https://github.com/lib/pq]
 
-By working at the wire protocol level, *crunchy-proxy* can implement a
-variety of features important for high speed proxy handling and for
-supporting PostgreSQL features to the fullest extent.
+In the future, by working at the wire protocol level, *crunchy-proxy* can implement a variety of features important for high speed proxy handling and for supporting PostgreSQL features.
 
-== Performance
-
-At this stage of development, *crunchy-proxy* performance
-is promising, currently for example it takes roughly 14 milliseconds on
-a cheap development box (e.g. i7 Core 6700K, SSD)
-to process 100 very small SQL statements (e.g. /* read */ select now()).
-
-Interestingly, with this design approach, as the size of your SQL statement
-grows, the performance gains increase. 
 
 == Execution
 
