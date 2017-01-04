@@ -306,14 +306,13 @@ select .....;
 
 === Health Checking
 
-The status of a backend is checked in a separate goroutine that runs until the proxy exits.  
+The *crunchy-proxy* status health check is currently a simple implementation - essentially determining only whether the backend can process a SQL statement.  
 
-The status health check is currently a simple implementation - essentially determining only whether the backend can process a SQL statement.  
+The health check is performed every few second on each backend by a separate goroutine that runs until the proxy exits.  
 
-This health check is performed every few seconds on each backend.
+The backend status is checked by the active connection processing in order to determine which backends are available to process a SQL statement.
 
-As the status of a backend changes, the global configuration is updated.  The backend status checked by the active connection processing in order to 
-determine which backends are available to processa SQL statement.
+As the status of a backend changes, the global configuration is updated.  
 
 Health status is captured and placed into an event channel.  The event channel is used to publish events to any number of subscribers to the
 REST API.
