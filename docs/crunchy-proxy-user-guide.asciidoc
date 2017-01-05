@@ -1,7 +1,7 @@
 = User Guide - Crunchy Proxy
 Crunchy Data Solutions, Inc.
 v0.0.1, {docdate}
-image::crunchy_logo.png?raw=true[]
+:title-logo-image: image:crunchy_logo.png["CrunchyData Logo",align="center",scaledwidth="80%"]
 
 == Releases
 

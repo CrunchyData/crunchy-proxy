@@ -35,104 +35,152 @@
 
 
         <div class="col-md-9" role="main">
-<div class="paragraph"><p>image::crunchy_logo.png</p></div>
 <div class="section">
-    <h1 class="page-header" id="project">1. Project</h1>
-<div class="paragraph"><p>crunchy-proxy is an experimental PostgreSQL-aware proxy used to intelligently handle PostgreSQL application requests.  In the diagram below, a PostgreSQL
-client application would connect to the proxy which appears as any other
-PostgreSQL database connection.  The proxy would accept the inbound client
-requests, and route them to an appropriate PostgreSQL cluster member.</p></div>
-<div class="paragraph"><p>image::proxy-golang.png</p></div>
-<div class="paragraph"><p>To the PostgreSQL server, the proxy is transparent and appears as any other
-PostgreSQL client would appear.  Within the proxy, various features are
-found including:</p></div>
-<div class="ulist"><ul>
-<li>
-<p>
-ability to configure a proxy configuration via a JSON configuration file
-</p>
-</li>
-<li>
-<p>
-ability to perform a PostgreSQL healthcheck on each configured  PostgreSQL
-   server instance
-</p>
-</li>
-<li>
-<p>
-ability to route inbound client messages based on the health of PostgreSQL
-</p>
-</li>
-<li>
-<p>
-ability to route messages based on the SQL command type, writes are
-   sent to a master and reads are sent to replicas in a round-robin fashion
-</p>
-</li>
-<li>
-<p>
-ability to provide a REST admin interface
-</p>
-</li>
-<li>
-<p>
-ability to publish healthcheck events to consumers outside of the proxy
-</p>
-</li>
-</ul></div>
+    <h1 class="page-header" id="releases">1. Releases</h1>
+<div class="paragraph"><p>Users can download a compiled version of <strong>crunchy-proxy</strong> from the
+github repo site in the Releases tab.</p></div>
+<div class="paragraph"><p>A Docker image is also found in the DockerHub at
+<a href="https://hub.docker.com/r/crunchydata/crunchy-proxy/">https://hub.docker.com/r/crunchydata/crunchy-proxy/</a></p></div>
 </div>
 <div class="section">
-    <h1 class="page-header" id="installation_instructions">2. Installation Instructions</h1>
-<div class="paragraph"><p>Setting up a golang project requires the following
-directory structure be created:</p></div>
+    <h1 class="page-header" id="command_usage">2. Command Usage</h1>
+<div class="paragraph"><p>The command syntax of the proxy is as follows:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
-<pre>sudo yum -y install golang
-mkdir -p gdev/src gdev/pkg gdev/bin
-export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin
-export PATH=$GOPATH:$PATH
-cd gdev/src
-go get github.com/tools/godep
-mkdir github.com/crunchydata
-cd github.com/crunchydata
-git clone git@github.com:CrunchyData/crunchy-proxy.git
-cd crunchy-proxy
-cd proxy
-godep restore</pre>
+<pre>crunchyproxy -config=config.json</pre>
+</div></div>
+<div class="paragraph"><p>The only command option is the <strong>-config</strong> flag.  This option specifies
+the proxy configuration to use.  A sample configuration file
+is located at <a href="https://github.com/crunchydata/crunchy-proxy/config.json">https://github.com/crunchydata/crunchy-proxy/config.json</a></p></div>
+<div class="paragraph"><p>The proxy uses 
+<a href="https://godoc.org/github.com/golang/glog">glog</a> for logging, to see the log output, run the proxy with this command:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>crunchyproxy -config=config.json -logtostderr=true</pre>
+</div></div>
+<div class="paragraph"><p>Increase the logging level this way:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>crunchyproxy -config=config.json -logtostderr=true -v 2</pre>
+</div></div>
+<div class="paragraph"><p>Normal execution does not produce any logging:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>crunchyproxy -config=config.json</pre>
 </div></div>
 </div>
 <div class="section">
-    <h1 class="page-header" id="design">3. Design</h1>
-<div class="paragraph"><p>The example shows a message traveling down this path:</p></div>
-<div class="paragraph"><p><strong>pg client&#8594;proxy&#8594;pg server&#8594;proxy&#8594;pg client</strong></p></div>
-<div class="paragraph"><p>Lets describe each component and show how to run the test&#8230;</p></div>
-<h2 id="postgres_cluster">3.1. Postgres Cluster</h2>
-<div class="paragraph"><p>Start up a PostgreSQL cluster (master and replica) to test with.  This
-is done by running a pair of PostgreSQL containers that form a replicating
-cluster.</p></div>
-<div class="paragraph"><p>This requires you install Docker on your dev box!  You can do this on
-centos7 with this:</p></div>
+    <h1 class="page-header" id="configuration">3. Configuration</h1>
+<div class="paragraph"><p>The proxy configuration is controlled by a single configuration file which
+is written in JSON format.</p></div>
+<div class="paragraph"><p>The JSON file is read at startup and is currently not reloaded after
+execution starts.</p></div>
+<div class="paragraph"><p>The JSON parameters include:</p></div>
+<table>
+<thead>
+<tr>
+<th>Parameter </th>
+<th> Purpose </th>
+<th> Example</th>
+</tr>
+</thead>
+<tfoot>
+<tr>
+<td>Replicas.IPAddr</td>
+<td>the replica backend hostname:port</td>
+<td>"127.0.0.1:12002"</td>
+</tr>
+</tfoot>
+<tbody>
+<tr>
+<td>Name</td>
+<td>a name you want to give the configuration</td>
+<td>"myconfig"</td>
+</tr>
+<tr>
+<td>IPAddr</td>
+<td>the proxy host:port to listen to</td>
+<td>"localhost:5432"</td>
+</tr>
+<tr>
+<td>AdminIPAddr</td>
+<td>the proxy admin host:port</td>
+<td>"localhost:10000"</td>
+</tr>
+<tr>
+<td>ReadAnnotation</td>
+<td>the string to use for a read annotation</td>
+<td>"read" is the default if not specified</td>
+</tr>
+<tr>
+<td>StartAnnotation</td>
+<td>the string to use for a start annotation</td>
+<td>"start" is the default if not specified</td>
+</tr>
+<tr>
+<td>FinishAnnotation</td>
+<td>the string to use for a finish annotation</td>
+<td>"finish" is the default if not specified</td>
+</tr>
+<tr>
+<td>heathcheck.delay</td>
+<td>seconds to delay between checks</td>
+<td>60</td>
+</tr>
+<tr>
+<td>heathcheck.query</td>
+<td>SQL to use for check</td>
+<td>"select now()"</td>
+</tr>
+<tr>
+<td>pool.enabled</td>
+<td>enable connection pooling</td>
+<td>true</td>
+</tr>
+<tr>
+<td>pool.capacity</td>
+<td>size of pools</td>
+<td>2</td>
+</tr>
+<tr>
+<td>credentials.username</td>
+<td>postgres username for pool connections</td>
+<td>"postgres"</td>
+</tr>
+<tr>
+<td>credentials.password</td>
+<td>postgres password for pool connections</td>
+<td>"password"</td>
+</tr>
+<tr>
+<td>credentials.database</td>
+<td>postgres database for pool connections</td>
+<td>"postgres"</td>
+</tr>
+<tr>
+<td>adapters</td>
+<td>not implemented yet</td>
+<td>"logging"</td>
+</tr>
+<tr>
+<td>Master.IPAddr</td>
+<td>the master backend hostname:port</td>
+<td>"127.0.0.1:12000"</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+    <h1 class="page-header" id="testing">4. Testing</h1>
+<div class="paragraph"><p>A test script is provided that will run a PostgreSQL cluster, with
+a single master and replica.  Run the database script as follows:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
-<pre>sudo yum -y install docker
-sudo group add docker
-sudo usermod -a -g docker youruserid
-sudo systemctl enable docker.service
-sudo systemctl start docker.service
-exit</pre>
+<pre>bin/run-cluster.sh</pre>
 </div></div>
-<div class="paragraph"><p>After logging back into a new terminal, you should be able to
-perform the following:</p></div>
-<div class="literalblock">
-<div class="content monospaced">
-<pre>cd proxy/pgcontainer
-./run-cluster.sh
-docker ps</pre>
-</div></div>
-<div class="paragraph"><p>If all has worked, you should see 2 Docker containers running, these
-make up a 2 node PostgreSQL cluster you will test against.</p></div>
-<div class="paragraph"><p>This will start a Postgres 9.5 master container that listens on
-<strong>localhost:12000</strong> and a replica container that listens on <strong>localhost:12002</strong></p></div>
+<div class="paragraph"><p>This will start two docker containers that execute the PostgreSQL cluster.</p></div>
+<div class="paragraph"><p>The Postgres 9.5 master container listens on <strong>localhost:12000</strong> and
+a replica container listens on <strong>localhost:12002</strong></p></div>
 <div class="paragraph"><p>The PostgreSQL user id is <strong>postgres</strong>, the password is <strong>password</strong>, and you
 would connect to these container database like this using psql:</p></div>
 <div class="literalblock">
@@ -152,15 +200,11 @@ docker stop replica</pre>
 <pre>docker start master
 docker start replica</pre>
 </div></div>
-<h2 id="proxy_component">3.2. Proxy Component</h2>
-<div class="paragraph"><p>There is a proxy component created when you run the <strong>main.go</strong>
-code.  This component accepts PostgreSQL client connections and routes
-client messages to one of the PostgreSQL containers.</p></div>
-<div class="paragraph"><p>Start it like this:</p></div>
+<h2 id="test_execution">4.1. Test Execution</h2>
+<div class="paragraph"><p>Start the <strong>crunchy-proxy</strong> like this:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
-<pre>cd proxy
-go run main.go -config=config.json</pre>
+<pre>go run crunchyproxy.go -config=config.json</pre>
 </div></div>
 <div class="paragraph"><p>This will do the following:</p></div>
 <div class="ulist"><ul>
@@ -185,20 +229,45 @@ route any client messages to the PostgreSQL containers
 </p>
 </li>
 </ul></div>
-<h2 id="pg_client_component">3.3. PG Client Component</h2>
-<div class="paragraph"><p>There is a test PostgreSQL client program created when you run the
-<strong>testclient.go</strong> code.  This is a client that sends messages
-to the proxy and will print out the responses from the proxy.</p></div>
-<div class="paragraph"><p>Run the test pg client like this:</p></div>
+<h2 id="benchmark">4.2. Benchmark</h2>
+<div class="paragraph"><p>For some simple benchmark results, run some tests using the
+<strong>crunchy-proxy</strong>:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
-<pre>cd testclient
+<pre>cd ./testclient
 ./run-test-proxy.sh</pre>
 </div></div>
-<h2 id="proxy_administration">3.4. Proxy Administration</h2>
+<div class="paragraph"><p>You can also run the <strong>psql</strong> command against the proxy as a test
+client.</p></div>
+<h2 id="overhead">4.3. Overhead</h2>
+<div class="paragraph"><p>Overhead of the proxy was measured and shows the following
+for the typical case of handling a SQL statement:</p></div>
+<table>
+<thead>
+<tr>
+<th>Test </th>
+<th> Proxy </th>
+<th> No-Proxy </th>
+<th> Overhead</th>
+</tr>
+</thead>
+<tfoot>
+<tr>
+<td>Single SQL Statement</td>
+<td>2.240026ms</td>
+<td>2.085424ms</td>
+<td>+0.154602ms</td>
+</tr>
+</tfoot>
+<tbody>
+</tbody>
+</table>
+</div>
+<div class="section">
+    <h1 class="page-header" id="proxy_administration">5. Proxy Administration</h1>
 <div class="paragraph"><p>There is an administration port created by the proxy that you
 can interact with to gain status from the proxy.</p></div>
-<h3 id="events">3.4.1. Events</h3>
+<h2 id="events">5.1. Events</h2>
 <div class="paragraph"><p>Events like a healthcheck status are published to any subscribers
 using a streaming REST API, you can access the admin events
 as follows:</p></div>
@@ -208,27 +277,192 @@ as follows:</p></div>
 </div></div>
 <div class="paragraph"><p>As the proxy publishes events, your REST client (e.g. curl) will receive
 the events.</p></div>
-<h3 id="configuration">3.4.2. Configuration</h3>
+<h2 id="current_configuration">5.2. Current Configuration</h2>
 <div class="paragraph"><p>You can get the current configuration of the proxy as follows:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>curl http://localhost:10000/api/config</pre>
 </div></div>
-<h3 id="statistics">3.4.3. Statistics</h3>
+<h2 id="statistics">5.3. Statistics</h2>
 <div class="paragraph"><p>You can get the current statistics of the proxy as follows:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>curl http://localhost:10000/api/stats</pre>
 </div></div>
-<h3 id="configuration_2">3.4.4. Configuration</h3>
-<div class="paragraph"><p>Configuration of the proxy is determined by a JSON configuration
-file that is input to the proxy.  The configuration
-file is read at startup of the proxy.</p></div>
-<div class="paragraph"><p>The structures defined in <strong>config/config.go</strong> define the content
-of the JSON configuration.</p></div>
 </div>
 <div class="section">
-    <h1 class="page-header" id="legal_notices">4. Legal Notices</h1>
+    <h1 class="page-header" id="compiling_the_source">6. Compiling the Source</h1>
+<div class="paragraph"><p>If you are a developer and want to build the proxy from source code,
+follow these steps&#8230;</p></div>
+<div class="paragraph"><p>Assuming an installation directory of <strong>$HOME/gdev</strong>, follow the following
+steps to build <strong>crunchy-proxy</strong> from source:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
+export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN</pre>
+</div></div>
+<div class="paragraph"><p>First, install a golang compiler. As an example, on centos7:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>sudo yum -y install golang</pre>
+</div></div>
+<div class="paragraph"><p>Next, pull the source code as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>cd gdev/src
+go get github.com/tools/godep
+mkdir github.com/crunchydata
+cd github.com/crunchydata
+git clone git@github.com:CrunchyData/crunchy-proxy.git</pre>
+</div></div>
+<div class="paragraph"><p>Next, build the binary as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>cd crunchy-proxy
+godep restore
+make</pre>
+</div></div>
+</div>
+<div class="section">
+    <h1 class="page-header" id="design">7. Design</h1>
+<div class="paragraph"><p>The example shows a message traveling down this path:</p></div>
+<div class="paragraph"><p><strong>pg client&#8594;proxy&#8594;pg server&#8594;proxy&#8594;pg client</strong></p></div>
+<h2 id="packages">7.1. Packages</h2>
+<div class="paragraph"><p>The proxy code is implemented in the following golang packages:</p></div>
+<table>
+<caption class="title">Table 1. proxy golang packages</caption>
+<thead>
+<tr>
+<th>Package Name </th>
+<th> Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>adapter</td>
+<td>adapters can be applied to in-bound and out-bound message flows to do add capabilities like logging or auditing</td>
+</tr>
+<tr>
+<td>admin</td>
+<td>the administration interface, a REST API</td>
+</tr>
+<tr>
+<td>config</td>
+<td>the configuration file format</td>
+</tr>
+<tr>
+<td>proxy</td>
+<td>the main proxy processing</td>
+</tr>
+<tr>
+<td>testclient</td>
+<td>a test client that uses libpq, useful for testing</td>
+</tr>
+<tr>
+<td>tests</td>
+<td>standalone unit tests</td>
+</tr>
+</tbody>
+</table>
+<h2 id="makefile_targets">7.2. Makefile Targets</h2>
+<div class="paragraph"><p>The Makefile has the following targets defined:</p></div>
+<table>
+<caption class="title">Table 2. Makefile targets</caption>
+<thead>
+<tr>
+<th>Makefile Target </th>
+<th> Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gendeps</td>
+<td>calls godep to generate dependencies for golang compilation</td>
+</tr>
+<tr>
+<td>docsbuild</td>
+<td>calls asciidoctor to generate PDF and HTML versions of the documentation</td>
+</tr>
+<tr>
+<td>clean</td>
+<td>removes the proxy binaries</td>
+</tr>
+<tr>
+<td>dockerimage</td>
+<td>builds the docker image for the proxy</td>
+</tr>
+<tr>
+<td>push</td>
+<td>pushes the docker image to dockerhub</td>
+</tr>
+<tr>
+<td>run</td>
+<td>runs the proxy in foreground using the default configuration file</td>
+</tr>
+<tr>
+<td>test</td>
+<td>executes the standalone unit tests</td>
+</tr>
+</tbody>
+</table>
+<h2 id="wire_protocol">7.3. Wire Protocol</h2>
+<div class="paragraph"><p><strong>crunchy-proxy</strong> operates at the PostgreSQL wire protocol (network) layer to understand
+PostgreSQL client authentication requests and SQL statements passed
+by a client to a PostgreSQL backend.</p></div>
+<div class="paragraph"><p>The proxy does very little processing of the messages sent between
+a client and an actual backend, mostly examining the SQL statements
+for a proxy-specific annotation.  The annotation is used to route
+the message to the backend.</p></div>
+<div class="paragraph"><p>Its important to note that the proxy does not implement all features
+of libpq or provide an application interface similar to a JDBC driver
+or other language driver.</p></div>
+<h2 id="connection_pooling">7.4. Connection Pooling</h2>
+<div class="paragraph"><p><strong>crunchy proxy</strong> provisions a connection pool for each backend (master and replica(s)) that is defined in the proxy
+configuration file.  The connection pool is a fixed size currently and established before the proxy begins to accept connections from clients.</p></div>
+<div class="paragraph"><p>The connections in the pool are determined by the pool settings found within the configuration parameters <strong>credentials</strong> and <strong>pool</strong>.</p></div>
+<div class="paragraph"><p>Currently <strong>crunchy proxy</strong> only supports basic PostgreSQL password authentication using username and password.</p></div>
+<div class="paragraph"><p>As client requests come into the proxy, the proxy will choose to which backend to route the SQL statement and then pick a free connection from the backend&#8217;s
+connection pool.</p></div>
+<div class="paragraph"><p>For each connection pool there is a golang channel defined to manage which connections are available for use when processing a SQL statement.
+After the SQL statement is processed, the connection is returned to the pool.  You can think of the pool&#8217;s channel as a queue of available connections.</p></div>
+<h2 id="client_authentication">7.5. Client Authentication</h2>
+<div class="paragraph"><p>Each client must authenticate against the master backend before the proxy will process future client requests.  <strong>crunchy proxy</strong> does not include
+an authentication store itself, but instead relies on the master backend to perform authentication.</p></div>
+<div class="paragraph"><p>Once a client does authenticate, the proxy will terminate the client&#8217;s connection to the master and subsequently begin using the connections
+from the connection pools.</p></div>
+<h2 id="annotations">7.6. Annotations</h2>
+<div class="paragraph"><p>SQL statements that start with a SQL comment of a particular format will be used to determine the routing of a SQL statement either to a master or a replica.</p></div>
+<div class="paragraph"><p>To simplify the proxy parsing, we require the annotation begin at the
+first byte of the SQL statement as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>/* read */ select from foo.....</pre>
+</div></div>
+<div class="paragraph"><p>If no annocation is found in a SQL statement, <strong>it is assumed the statement
+is a write</strong>.</p></div>
+<div class="paragraph"><p>In certain circumstances, it may be desriable to route all the SQL statements within a transaction to the same backend.</p></div>
+<div class="paragraph"><p>In order to support this case, it is possible include a <strong>start</strong> annotation in the first SQL statement and a <strong>finish</strong> annotation in the last SQL statement
+as follows:</p></div>
+<div class="literalblock">
+<div class="content monospaced">
+<pre>/* start */ begin;
+select .....;
+/* finish */commit;
+
+/* start,read */ begin;
+select .....;
+/* finish */commit;</pre>
+</div></div>
+<h2 id="health_checking">7.7. Health Checking</h2>
+<div class="paragraph"><p>The <strong>crunchy-proxy</strong> status health check is currently a simple implementation - essentially determining only whether the backend can process a SQL statement.</p></div>
+<div class="paragraph"><p>The health check is performed every few second on each backend by a separate goroutine that runs until the proxy exits.</p></div>
+<div class="paragraph"><p>The backend status is checked by the active connection processing in order to determine which backends are available to process a SQL statement.</p></div>
+<div class="paragraph"><p>As the status of a backend changes, the global configuration is updated.</p></div>
+<div class="paragraph"><p>Health status is captured and placed into an event channel.  The event channel is used to publish events to any number of subscribers to the
+REST API.</p></div>
+</div>
+<div class="section">
+    <h1 class="page-header" id="legal_notices">8. Legal Notices</h1>
 <div class="paragraph"><p>Copyright © 2016 Crunchy Data Solutions, Inc.</p></div>
 <div class="paragraph"><p>CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</p></div>
 <div class="paragraph"><p>Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks of Crunchy Data Solutions, Inc.</p></div>
