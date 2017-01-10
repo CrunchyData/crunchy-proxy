@@ -7,7 +7,7 @@ echo "starting master container..."
 DATA_DIR=/tmp/master-data
 sudo rm -rf $DATA_DIR
 sudo mkdir -p $DATA_DIR
-sudo chown postgres:postgres $DATA_DIR
+sudo chmod 777 $DATA_DIR
 sudo chcon -Rt svirt_sandbox_file_t $DATA_DIR
 
 docker stop master

@@ -74,6 +74,7 @@ The JSON parameters include:
 A test script is provided that will run a PostgreSQL cluster, with
 a single master and replica.  Run the database script as follows:
 ....
+export CCP_IMAGE_TAG=centos7-9.5-1.2.6
 bin/run-cluster.sh
 ....
 
@@ -178,6 +179,7 @@ steps to build *crunchy-proxy* from source:
 ....
 mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
 export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN
+export BUILDBASE=$GOPATH/github.com/crunchydata/crunchy-proxy
 ....
 
 First, install a golang compiler. As an example, on centos7:
