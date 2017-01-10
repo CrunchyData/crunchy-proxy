@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-PROXY=/home/jeffmc/gdev/src/github.com/crunchydata/crunchy-proxy/tests/docker
-CONFIG=$PROXY/config.json
+CONFIG=$BUILDBASE/tests/docker/config.json
 sudo chcon -Rt svirt_sandbox_file_t $CONFIG
 PROXY_TAG=centos7-0.0.1
 CONTAINER=crunchyproxy
@@ -21,4 +20,4 @@ docker rm $CONTAINER
 docker run -d --name=$CONTAINER \
 	-p 5432:5432 \
 	-v $CONFIG:/config/config.json \
-	-d crunchy-proxy:latest
+	crunchydata/crunchy-proxy:$PROXY_TAG
