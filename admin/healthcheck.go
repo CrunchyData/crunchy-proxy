@@ -26,24 +26,36 @@ import (
 
 func StartHealthcheck(c *config.Config) {
 
-	if c.Healthcheck.Query == "" {
-		c.Healthcheck.Query = "select now()"
-	}
-	if c.Healthcheck.Delay == 0 {
-		c.Healthcheck.Delay = 10
-	}
-	glog.V(5).Infoln("[hc]: delay: %d query:%s\n", c.Healthcheck.Delay, c.Healthcheck.Query)
 	var result bool
 	var mutex = &sync.Mutex{}
 	var event ProxyEvent
 
+	// If a healthcheck query is not provided, then use the default.
+	if c.Healthcheck.Query == "" {
+		c.Healthcheck.Query = "select now()"
+		glog.Infof("[hc] Healthcheck query is not specified, using default: %s\n",
+			c.Healthcheck.Query)
+	}
+
+	// If a healthcheck delay is not provided, then use the default.
+	if c.Healthcheck.Delay == 0 {
+		c.Healthcheck.Delay = 10
+	    glog.Infof("[hc] Healthcheck delay is not specified, using default: %d\n",
+			c.Healthcheck.Delay)
+	}
+
+	// Start healthcheck of all nodes.
 	for true {
-		result = HealthcheckQuery(c.Credentials, c.Healthcheck, c.Master)
-		//log.Printf("[hc] master: %t ", result)
+
+		// Check master node.
+		glog.V(2).Info("[hc] Checking Master")
+		result = healthcheckQuery(c.Credentials, c.Healthcheck.Query, c.Master)
+
 		event = ProxyEvent{
 			Name:    "hc",
-			Message: fmt.Sprintf("master is %t", result),
+			Message: fmt.Sprintf("master is healthy: %t", result),
 		}
+
 		for j := range EventChannel {
 			EventChannel[j] <- event
 		}
@@ -52,25 +64,31 @@ func StartHealthcheck(c *config.Config) {
 		c.Master.Healthy = result
 		mutex.Unlock()
 
+		// Check replica nodes.
 		for i := range c.Replicas {
-			result = HealthcheckQuery(c.Credentials, c.Healthcheck, c.Replicas[i])
-			//log.Printf("[hc] replica: %d %t ", i, result)
+			glog.V(2).Infof("[hc] Checking Replica %d\n", i)
+			result = healthcheckQuery(c.Credentials, c.Healthcheck.Query, c.Replicas[i])
+
 			event = ProxyEvent{
 				Name:    "hc",
-				Message: fmt.Sprintf("replica is %t", result),
+				Message: fmt.Sprintf("replica [%d] is healthy: %t", i, result),
 			}
+
 			for j := range EventChannel {
 				EventChannel[j] <- event
 			}
+
 			mutex.Lock()
 			c.Replicas[i].Healthy = result
 			mutex.Unlock()
 		}
+
+		// Wait specified delay period before checking again.
 		time.Sleep(time.Duration(c.Healthcheck.Delay) * time.Second)
 	}
 }
 
-func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node config.Node) bool {
+func healthcheckQuery(cred config.PGCredentials, query string, node config.Node) bool {
 
 	var conn *sql.DB
 	var rows *sql.Rows
@@ -81,38 +99,47 @@ func HealthcheckQuery(cred config.PGCredentials, hc config.Healthcheck, node con
 	var dbPassword = cred.Password
 	var dbPort = hostport[1]
 	var database = cred.Database
-	glog.V(5).Infoln("[hc] connecting to host:" + dbHost + " port:" + dbPort + " user:" + dbUser + " password:" + dbPassword + " database:" + database)
-	conn, err = GetDBConnection(dbHost, dbUser, dbPort, database, dbPassword)
+
+	conn, err = getDBConnection(dbHost, dbUser, dbPort, database, dbPassword)
 	defer conn.Close()
 
 	if err != nil {
 		glog.Errorln("[hc] healthcheck failed: error: " + err.Error())
 		return false
 	}
-	glog.V(5).Infoln("[hc] got a connection")
-	rows, err = conn.Query(hc.Query)
+
+	rows, err = conn.Query(query)
 	defer rows.Close()
+
 	if err != nil {
 		glog.Errorln("[hc] failed: error: " + err.Error())
 		return false
 	}
+
 	return true
 }
 
-func GetDBConnection(dbHost string, dbUser string, dbPort string, database string, dbPassword string) (*sql.DB, error) {
+func getDBConnection(dbHost string, dbUser string, dbPort string, database string, dbPassword string) (*sql.DB, error) {
 
 	var dbConn *sql.DB
 	var err error
+	var connectionString string
 
 	if dbPassword == "" {
-		glog.V(5).Infoln("a open db with dbHost=[" + dbHost + "] dbUser=[" + dbUser + "] dbPort=[" + dbPort + "] database=[" + database + "]")
-		dbConn, err = sql.Open("postgres", "sslmode=disable user="+dbUser+" host="+dbHost+" port="+dbPort+" dbname="+database)
+		connectionString = fmt.Sprintf("host=%s port=%s user=%s database=%s sslmode=disable",
+			dbHost, dbPort, dbUser, database)
 	} else {
-		glog.V(5).Infoln("b open db with dbHost=[" + dbHost + "] dbUser=[" + dbUser + "] dbPort=[" + dbPort + "] database=[" + database + "] password=[" + dbPassword + "]")
-		dbConn, err = sql.Open("postgres", "sslmode=disable user="+dbUser+" host="+dbHost+" port="+dbPort+" dbname="+database+" password="+dbPassword)
+		connectionString = fmt.Sprintf("host=%s port=%s user=%s password=%s database=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, database)
 	}
+
+	glog.V(5).Infof("[hc] Opening connection with parameters: %s\n", connectionString)
+
+	dbConn, err = sql.Open("postgres", connectionString)
+
 	if err != nil {
-		glog.Errorln("error in getting connection :" + err.Error())
+		glog.Errorf("[hc] Error creating connection : %s\n", err.Error())
 	}
+
 	return dbConn, err
 }
