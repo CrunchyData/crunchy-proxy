@@ -26,19 +26,25 @@ import (
 )
 
 func ProtocolMsgType(buf []byte) (string, int) {
-	msgLen := int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+	var msgLen int32
+
+	// Read the message length.
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	glog.V(2).Infof("[protocol] %d msgLen\n", msgLen)
+
 	return string(buf[0]), int(msgLen)
 }
 
 func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
 	var msgType byte
+
 	if hint == "startup" {
 		glog.V(2).Infof("[protocol] %s %s [%s]\n", direction, hint, "startup")
 		StartupRequest(buf, bufLen)
 		return
 	} else {
-		//log.Printf("protocol dump: hex=%x char=%c all=%s\n", buf[0], buf[0], string(buf[0:bufLen-1]))
 		msgType = buf[0]
 		glog.V(2).Infof("[protocol] %s %s [%c]\n", direction, hint, msgType)
 		switch msgType {
@@ -88,13 +94,20 @@ func NullTermToStrings(b []byte) (s []string) {
 }
 
 func AuthenticationRequest(buf []byte) []byte {
-	var msgLen int32
-	var mtype int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	mtype = int32(buf[5])<<24 | int32(buf[6])<<16 | int32(buf[7])<<8 | int32(buf[8])
+	var msgLength int32
+	var authType int32
+
+	// Read message length.
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLength)
+
+	// Read authentication type.
+	reader.Reset(buf[5:9])
+	binary.Read(reader, binary.BigEndian, &authType)
+
 	var salt = []byte{buf[9], buf[10], buf[11], buf[12]}
 	var saltstr = string(salt)
-	glog.V(2).Infof("[protocol] AuthenticationRequest: msglen=%d type=%d salt=%x saltstr=%s\n", msgLen, mtype, salt, saltstr)
+	glog.V(2).Infof("[protocol] AuthenticationRequest: msglen=%d type=%d salt=%x saltstr=%s\n", msgLength, authType, salt, saltstr)
 	return salt
 }
 
@@ -109,9 +122,13 @@ func ErrorResponse(buf []byte) {
 func StartupRequest(buf []byte, bufLen int) {
 	var msgLen int32
 	var startupProtocol int32
-	//var parameters []string
-	msgLen = int32(buf[0])<<24 | int32(buf[1])<<16 | int32(buf[2])<<8 | int32(buf[3])
-	startupProtocol = int32(buf[4])<<24 | int32(buf[5])<<16 | int32(buf[6])<<8 | int32(buf[7])
+
+	reader := bytes.NewReader(buf[0:4])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
+	reader.Reset(buf[4:8])
+	binary.Read(reader, binary.BigEndian, &startupProtocol)
+
 	glog.V(2).Infof("[protocol] StartupRequest: msglen=%d protocol=%d\n", msgLen, startupProtocol)
 	//parameters = string(buf[8 : bufLen-8])
 	/**
@@ -126,22 +143,33 @@ func StartupRequest(buf []byte, bufLen int) {
 func QueryRequest(buf []byte) {
 	var msgLen int32
 	var query string
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	query = string(buf[5:msgLen])
+
 	glog.V(2).Infof("[protocol] QueryRequest: msglen=%d query=%s\n", msgLen, query)
 }
 
 func NoticeResponse(buf []byte) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	var fieldType = buf[5]
 	var fieldMsg = string(buf[6:msgLen])
+
 	glog.V(2).Infof("[protocol] NoticeResponse: msglen=%d fieldType=%x fieldMsg=%s\n", msgLen, fieldType, fieldMsg)
 }
 
 func RowDescription(buf []byte, bufLen int) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	glog.V(2).Infof("[protocol] RowDescription: msglen=%d\n", msgLen)
 	var data []byte
 
@@ -151,27 +179,43 @@ func RowDescription(buf []byte, bufLen int) {
 	glog.V(2).Infof("[protocol] datarow type%s found \n", dataRowType)
 
 }
+
 func DataRow(buf []byte) {
-	var numfields int
+	var numFields int
 	var msgLen int32
 	var fieldLen int32
 	var fieldValue string
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
-	numfields = int(buf[5])<<8 | int(buf[6])
-	fieldLen = int32(buf[7])<<24 | int32(buf[8])<<16 | int32(buf[9])<<8 | int32(buf[10])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
+	reader.Reset(buf[5:7])
+	binary.Read(reader, binary.BigEndian, &numFields)
+
+	reader.Reset(buf[7:11])
+	binary.Read(reader, binary.BigEndian, &fieldLen)
+
 	fieldValue = string(buf[11 : fieldLen+11])
-	glog.V(2).Infof("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n", numfields, msgLen, fieldLen, fieldValue)
+
+	glog.V(2).Infof("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n", numFields, msgLen, fieldLen, fieldValue)
 }
+
 func CommandComplete(buf []byte) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	buffer := bytes.NewReader(buf[1:5])
+	binary.Read(buffer, binary.BigEndian, &msgLen)
+
 	glog.V(2).Infof("[protocol] Command Complete: msglen=%d\n", msgLen)
 }
+
 func TerminateMessage(buf []byte) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+	buffer := bytes.NewReader(buf[1:5])
+	binary.Read(buffer, binary.BigEndian, &msgLen)
 	glog.V(2).Infof("[protocol] Terminate: msglen=%d\n", msgLen)
 }
+
 func GetTerminateMessage() []byte {
 	var buffer []byte
 	buffer = append(buffer, 'X')
@@ -182,16 +226,24 @@ func GetTerminateMessage() []byte {
 	buffer = append(buffer, x...)
 	return buffer
 }
+
 func PasswordMessage(buf []byte) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	var hash = string(buf[5:msgLen])
 
 	glog.V(2).Infof("[protocol] PasswordMessage: msglen=%d password hash=%s\n", msgLen, hash)
 }
+
 func PasswordMessageFake(buf []byte, salt []byte, username string, password string) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	var hash = string(buf[5:msgLen])
 
 	glog.V(2).Infof("[protocol] PasswordMessageFake: username=%s password=%s\n", username, password)
