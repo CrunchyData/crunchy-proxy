@@ -1,6 +1,7 @@
 #!/bin/bash 
 
 # start up a master and a single replica for testing
+CCP_IMAGE_TAG=centos7-9.5-1.2.6
 
 echo "starting master container..."
 
