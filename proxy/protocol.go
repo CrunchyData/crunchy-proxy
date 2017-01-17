@@ -113,7 +113,10 @@ func AuthenticationRequest(buf []byte) []byte {
 
 func ErrorResponse(buf []byte) {
 	var msgLen int32
-	msgLen = int32(buf[1])<<24 | int32(buf[2])<<16 | int32(buf[3])<<8 | int32(buf[4])
+
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
 	glog.V(2).Infof("[protocol] ErrorResponse: msglen=%d\n", msgLen)
 	var errorMessage = string(buf[5:msgLen])
 	glog.V(2).Infof("[protocol] ErrorResponse: message=%s\n", errorMessage)
