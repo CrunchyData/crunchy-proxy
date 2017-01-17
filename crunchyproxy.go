@@ -19,6 +19,9 @@ import (
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/crunchydata/crunchy-proxy/proxy"
 	"github.com/golang/glog"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 var cfg config.Config
@@ -28,6 +31,15 @@ func main() {
 	cfg = config.ReadConfig()
 
 	glog.Infoln("main starting...")
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		glog.Infoln(sig)
+		glog.Infoln("caught signal, cleaning up and exiting...")
+		os.Exit(0)
+	}()
 
 	go admin.StartHealthcheck(&cfg)
 	cfg.SetupAdapters()
