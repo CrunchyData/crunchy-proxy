@@ -1,7 +1,7 @@
 {
     "Name": "sampleconfig",
-    "IPAddr": "localhost:5432",
-    "AdminIPAddr": "localhost:10000",
+    "HostPort": "localhost:5432",
+    "AdminHostPort": "localhost:10000",
     "ReadAnnotation": "read",
     "StartAnnotation": "start",
     "FinishAnnotation": "finish",
@@ -21,14 +21,14 @@
     "Adapters": [
     ],
     "Master": {
-        "IPAddr": "127.0.0.1:12000",
+        "HostPort": "127.0.0.1:12000",
         "metadata": {
             "cpu": "large",
             "disk": "fast"
         }
     },
     "Replicas": [{
-        "IPAddr": "127.0.0.1:12002",
+        "HostPort": "127.0.0.1:12002",
         "metadata": {
             "cpu": "small",
             "disk": "slow"

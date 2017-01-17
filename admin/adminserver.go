@@ -29,9 +29,9 @@ var globalconfig *config.Config
 func Initialize(config *config.Config) {
 
 	var ipaddr = DEFAULT_ADMIN_IPADDR
-	glog.V(2).Infoln("config.AdminIPAddr is [" + config.AdminIPAddr + "]")
-	if config.AdminIPAddr != "" {
-		ipaddr = config.AdminIPAddr
+	glog.V(2).Infoln("config.AdminHostPort is [" + config.AdminHostPort + "]")
+	if config.AdminHostPort != "" {
+		ipaddr = config.AdminHostPort
 	}
 	glog.V(2).Infoln("adminserver: initializing on " + ipaddr)
 	globalconfig = config
@@ -62,9 +62,9 @@ func GetConfig(w rest.ResponseWriter, r *rest.Request) {
 }
 
 type AdminStatsNode struct {
-	IPAddr  string `json:"ipaddr"`
-	Healthy bool   `json:"healthy"`
-	Queries int    `json:"queries"`
+	HostPort string `json:"ipaddr"`
+	Healthy  bool   `json:"healthy"`
+	Queries  int    `json:"queries"`
 }
 
 type AdminStats struct {
@@ -76,12 +76,12 @@ func GetStats(w rest.ResponseWriter, r *rest.Request) {
 
 	stats := AdminStats{}
 	stats.Nodes = make([]AdminStatsNode, 1+len(globalconfig.Replicas))
-	stats.Nodes[0].IPAddr = globalconfig.Master.IPAddr
+	stats.Nodes[0].HostPort = globalconfig.Master.HostPort
 	stats.Nodes[0].Queries = globalconfig.Master.Stats.Queries
 	stats.Nodes[0].Healthy = globalconfig.Master.Healthy
 
 	for i := 1; i < len(globalconfig.Replicas)+1; i++ {
-		stats.Nodes[i].IPAddr = globalconfig.Replicas[i-1].IPAddr
+		stats.Nodes[i].HostPort = globalconfig.Replicas[i-1].HostPort
 		stats.Nodes[i].Queries = globalconfig.Replicas[i-1].Stats.Queries
 		stats.Nodes[i].Healthy = globalconfig.Replicas[i-1].Healthy
 	}

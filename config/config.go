@@ -54,7 +54,7 @@ type Healthcheck struct {
 	Query string `json:"query"`
 }
 type Node struct {
-	IPAddr       string            `json:"ipaddr"` //remote host:port
+	HostPort     string            `json:"hostport"` //remote host:port
 	Metadata     map[string]string `json:"metadata"`
 	Healthy      bool              `json:"-"`
 	HCConnection net.Conn          `json:"-"`
@@ -66,8 +66,8 @@ type Node struct {
 
 type Config struct {
 	Name             string          `json:"name"`
-	IPAddr           string          `json:"ipaddr"`      //listen on host:port
-	AdminIPAddr      string          `json:"adminipaddr"` //listen on host:port
+	HostPort         string          `json:"hostport"`      //listen on host:port
+	AdminHostPort    string          `json:"adminhostport"` //listen on host:port
 	ReadAnnotation   string          `json:"readannotation"`
 	StartAnnotation  string          `json:"startannotation"`
 	FinishAnnotation string          `json:"finishannotation"`
@@ -90,10 +90,10 @@ func (c Config) Print() {
 }
 func (c Config) PrintNodeInfo(msg string) {
 	glog.Infoln("----Master Info %s----\n", msg)
-	glog.Infoln("master=%s ", c.Master.IPAddr)
+	glog.Infoln("master=%s ", c.Master.HostPort)
 	glog.Infoln("----Replica Info %s----\n", msg)
 	for i := 0; i < len(c.Replicas); i++ {
-		glog.Infoln("replica=%s ", c.Replicas[i].IPAddr)
+		glog.Infoln("replica=%s ", c.Replicas[i].HostPort)
 	}
 }
 
@@ -108,16 +108,16 @@ func PrintExample() {
 		Database: "database1"}
 
 	var ms = Node{
-		IPAddr: "master:5432"}
+		HostPort: "master:5432"}
 
 	ms.Metadata = make(map[string]string)
 
 	var rs = make([]Node, 2)
 	rs[0] = Node{
-		IPAddr: "replica1:5432"}
+		HostPort: "replica1:5432"}
 	rs[0].Metadata = make(map[string]string)
 	rs[1] = Node{
-		IPAddr: "replica2:5432"}
+		HostPort: "replica2:5432"}
 	rs[1].Metadata = make(map[string]string)
 	var hs Healthcheck
 	hs.Delay = 10
@@ -125,7 +125,7 @@ func PrintExample() {
 
 	c := Config{
 		Name:        "sampleconfig",
-		IPAddr:      "localhost:5432",
+		HostPort:    "localhost:5432",
 		Master:      ms,
 		Pool:        pool,
 		Credentials: cred,
@@ -162,10 +162,10 @@ func ReadConfig() Config {
 		panic(err)
 	}
 
-	cfg.Master.TCPAddr, err = net.ResolveTCPAddr("tcp4", cfg.Master.IPAddr)
+	cfg.Master.TCPAddr, err = net.ResolveTCPAddr("tcp4", cfg.Master.HostPort)
 	checkError(err)
 	for n := 0; n < len(cfg.Replicas); n++ {
-		cfg.Replicas[n].TCPAddr, err = net.ResolveTCPAddr("tcp4", cfg.Replicas[n].IPAddr)
+		cfg.Replicas[n].TCPAddr, err = net.ResolveTCPAddr("tcp4", cfg.Replicas[n].HostPort)
 		checkError(err)
 	}
 
@@ -192,7 +192,7 @@ func (n *Node) GetConnection() (*net.TCPConn, error) {
 func (c *Config) GetAllConnections() {
 
 	var err error
-	glog.V(2).Infoln("dialing " + c.Master.IPAddr)
+	glog.V(2).Infoln("dialing " + c.Master.HostPort)
 	c.Master.TCPConn, err = net.DialTCP("tcp", nil, c.Master.TCPAddr)
 	if err != nil {
 		glog.Errorln(err.Error())

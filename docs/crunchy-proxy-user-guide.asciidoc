@@ -52,8 +52,8 @@ The JSON parameters include:
 |======================
 |Parameter | Purpose | Example
 |Name        | a name you want to give the configuration | "myconfig"
-|IPAddr        | the proxy host:port to listen to| "localhost:5432"
-|AdminIPAddr        |the proxy admin host:port | "localhost:10000"
+|HostPort        | the proxy host:port to listen to| "localhost:5432"
+|AdminHostPort        |the proxy admin host:port | "localhost:10000"
 |ReadAnnotation        |the string to use for a read annotation | "read" is the default if not specified
 |StartAnnotation        |the string to use for a start annotation | "start" is the default if not specified
 |FinishAnnotation        |the string to use for a finish annotation | "finish" is the default if not specified
@@ -65,8 +65,8 @@ The JSON parameters include:
 |credentials.password        |postgres password for pool connections | "password"
 |credentials.database        |postgres database for pool connections | "postgres"
 |adapters|not implemented yet | "logging"
-|Master.IPAddr| the master backend hostname:port| "127.0.0.1:12000"
-|Replicas.IPAddr| the replica backend hostname:port| "127.0.0.1:12002"
+|Master.HostPort| the master backend hostname:port| "127.0.0.1:12000"
+|Replicas.HostPort| the replica backend hostname:port| "127.0.0.1:12002"
 |======================
 
 == Testing

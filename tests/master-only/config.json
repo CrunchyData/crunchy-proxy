@@ -1,7 +1,7 @@
 {
     "Name": "masteronly",
-    "IPAddr": "localhost:5432",
-    "AdminIPAddr": "localhost:10000",
+    "HostPort": "localhost:5432",
+    "AdminHostPort": "localhost:10000",
     "healthcheck": {
         "delay": 60,
         "query": "select now()"
@@ -19,7 +19,7 @@
         "logging"
     ],
     "Master": {
-        "IPAddr": "127.0.0.1:12000",
+        "HostPort": "127.0.0.1:12000",
         "metadata": {
             "cpu": "large",
             "disk": "fast"

@@ -48,7 +48,7 @@ func setupPoolForNode(c *config.Config, node *config.Node) {
 	for j := 0; j < c.Pool.Capacity; j++ {
 		node.Pool.Channel <- j
 		//add a connection to the node pool
-		glog.V(2).Infoln("[pool] adding conn to node %s pool\n", node.IPAddr)
+		glog.V(2).Infoln("[pool] adding conn to node %s pool\n", node.HostPort)
 		node.Pool.Connections[j], err = node.GetConnection()
 		if err != nil {
 			glog.Errorln("error in getting pool conn for node " + err.Error())

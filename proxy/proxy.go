@@ -23,9 +23,9 @@ import (
 
 func ListenAndServe(config *config.Config) {
 	glog.Infoln("[proxy] ListenAndServe config=" + config.Name)
-	glog.Infoln("[proxy] ListenAndServe listening on ipaddr=" + config.IPAddr)
+	glog.Infoln("[proxy] ListenAndServe listening on ipaddr=" + config.HostPort)
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", config.IPAddr)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", config.HostPort)
 	checkError(err)
 
 	var listener net.Listener
@@ -109,7 +109,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				//get pool index from pool channel
 				poolIndex = <-nextNode.Pool.Channel
 
-				glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.IPAddr, poolIndex)
+				glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.HostPort, poolIndex)
 				backendConn = nextNode.Pool.Connections[poolIndex]
 			}
 			if finishCase {

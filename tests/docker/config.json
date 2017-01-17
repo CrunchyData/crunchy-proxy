@@ -1,7 +1,7 @@
 {
     "Name": "sampleconfig",
-    "IPAddr": "localhost:5432",
-    "AdminIPAddr": "localhost:10000",
+    "HostPort": "localhost:5432",
+    "AdminHostPort": "localhost:10000",
     "healthcheck": {
         "delay": 60,
         "query": "select now()"
@@ -19,14 +19,14 @@
         "logging"
     ],
     "Master": {
-        "IPAddr": "master:5432",
+        "HostPort": "master:5432",
         "metadata": {
             "cpu": "large",
             "disk": "fast"
         }
     },
     "Replicas": [{
-        "IPAddr": "replica:5432",
+        "HostPort": "replica:5432",
         "metadata": {
             "cpu": "small",
             "disk": "slow"

@@ -40,7 +40,7 @@ func StartHealthcheck(c *config.Config) {
 	// If a healthcheck delay is not provided, then use the default.
 	if c.Healthcheck.Delay == 0 {
 		c.Healthcheck.Delay = 10
-	    glog.Infof("[hc] Healthcheck delay is not specified, using default: %d\n",
+		glog.Infof("[hc] Healthcheck delay is not specified, using default: %d\n",
 			c.Healthcheck.Delay)
 	}
 
@@ -93,7 +93,7 @@ func healthcheckQuery(cred config.PGCredentials, query string, node config.Node)
 	var conn *sql.DB
 	var rows *sql.Rows
 	var err error
-	var hostport = strings.Split(node.IPAddr, ":")
+	var hostport = strings.Split(node.HostPort, ":")
 	var dbHost = hostport[0]
 	var dbUser = cred.Username
 	var dbPassword = cred.Password
