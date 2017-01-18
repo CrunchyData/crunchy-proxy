@@ -2,6 +2,9 @@
 ifndef BUILDBASE
 	export BUILDBASE=$(GOPATH)/src/github.com/crunchydata/crunchy-proxy
 endif
+ifndef PROXY_RELEASE
+	export PROXY_RELEASE=0.0.1-pre-alpha
+endif
 
 default:
 	make proxybin
@@ -17,12 +20,14 @@ docsbuild:
 clean:
 	rm -rf $(GOPATH)/pkg/* $(GOPATH)/bin/*
 	go get github.com/tools/godep
+release:
+	tar czf /tmp/crunchyproxy-$(PROXY_RELEASE).tar.gz -C $(GOBIN) crunchyproxy
 dockerimage:
 	cp $(GOBIN)/crunchyproxy bin
 	docker build -t crunchy-proxy -f Dockerfile.centos7 .
-	docker tag crunchy-proxy crunchydata/crunchy-proxy:centos7-0.0.1
+	docker tag crunchy-proxy crunchydata/crunchy-proxy:centos7-$(PROXY_RELEAST)
 pushdockerimage:
-	docker push crunchydata/crunchy-proxy:centos7-0.0.1
+	docker push crunchydata/crunchy-proxy:centos7-$(PROXY_RELEASE)
 
 proxybin:
 	godep go install crunchyproxy.go
