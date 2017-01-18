@@ -25,6 +25,8 @@ import (
 	"net"
 )
 
+const PROTOCOL_VERSION int32 = 196608
+
 func ProtocolMsgType(buf []byte) (string, int) {
 	var msgLen int32
 
@@ -361,8 +363,8 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	binary.BigEndian.PutUint32(x, uint32(1))
 	buffer = append(buffer, x...)
 
-	//w.int32(196608)
-	binary.BigEndian.PutUint32(x, uint32(196608))
+	// Set the protocol version.
+	binary.BigEndian.PutUint32(x, uint32(PROTOCOL_VERSION))
 	buffer = append(buffer, x...)
 
 	var key, value string
