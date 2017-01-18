@@ -29,6 +29,12 @@ import (
 	"time"
 )
 
+const (
+	DEFAULT_READ_ANNOTATION   string = "read"
+	DEFAULT_START_ANNOTATION  string = "start"
+	DEFAULT_FINISH_ANNOTATION string = "finish"
+)
+
 type NodeStats struct {
 	Queries int `json:"-"`
 }
@@ -53,6 +59,7 @@ type Healthcheck struct {
 	Delay int    `json:"delay"` //remote host:port
 	Query string `json:"query"`
 }
+
 type Node struct {
 	HostPort     string            `json:"hostport"` //remote host:port
 	Metadata     map[string]string `json:"metadata"`
@@ -88,12 +95,16 @@ func (c Config) Print() {
 	glog.V(2).Infoln(string(str))
 
 }
-func (c Config) PrintNodeInfo(msg string) {
-	glog.Infoln("----Master Info %s----\n", msg)
-	glog.Infoln("master=%s ", c.Master.HostPort)
-	glog.Infoln("----Replica Info %s----\n", msg)
-	for i := 0; i < len(c.Replicas); i++ {
-		glog.Infoln("replica=%s ", c.Replicas[i].HostPort)
+
+func (c Config) PrintNodeInfo() {
+	// Print the master node information.
+	glog.Infoln("----Master Node Information ----")
+	glog.Infof("master host = %s\n", c.Master.HostPort)
+
+	// Print the replica node information.
+	glog.Infoln("----Replica Node Information ----")
+	for i, replica := range c.Replicas {
+		glog.Infof("replica %d host = %s\n", i, replica.HostPort)
 	}
 }
 
@@ -170,17 +181,27 @@ func ReadConfig() Config {
 	}
 
 	if cfg.ReadAnnotation == "" {
-		cfg.ReadAnnotation = "read"
+		cfg.ReadAnnotation = DEFAULT_READ_ANNOTATION
+		glog.Infof("[config] ReadAnnotation is not specified, using default: %s\n",
+			cfg.ReadAnnotation)
 	}
+
 	if cfg.StartAnnotation == "" {
-		cfg.ReadAnnotation = "start"
+		cfg.StartAnnotation = DEFAULT_START_ANNOTATION
+		glog.Infof("[config] StartAnnotation is not specified, using default: %s\n",
+			cfg.StartAnnotation)
 	}
+
 	if cfg.FinishAnnotation == "" {
-		cfg.FinishAnnotation = "finish"
+		cfg.FinishAnnotation = DEFAULT_FINISH_ANNOTATION
+		glog.Infof("[config] FinishAnnotation is not specified, using default: %s\n",
+			cfg.FinishAnnotation)
 	}
-	glog.V(2).Infoln("[config]" + cfg.ReadAnnotation + " is the ReadAnnotation")
-	glog.V(2).Infoln("[config]" + cfg.StartAnnotation + " is the StartAnnotation")
-	glog.V(2).Infoln("[config]" + cfg.FinishAnnotation + " is the FinishAnnotation")
+
+	glog.V(2).Infof("[config] %s is the ReadAnnotation", cfg.ReadAnnotation)
+	glog.V(2).Infof("[config] %s is the StartAnnotation", cfg.StartAnnotation)
+	glog.V(2).Infof("[config] %s is the FinishAnnotation", cfg.FinishAnnotation)
+
 	return cfg
 }
 
@@ -201,21 +222,23 @@ func (c *Config) GetAllConnections() {
 }
 
 func (c *Config) SetupAdapters() {
-	var ds []adapter.Decorator = make([]adapter.Decorator, 0)
-	for i := 0; i < len(c.Adapters); i++ {
+	glog.Infoln("---- Setup Adapters ----")
 
+	var ds []adapter.Decorator = make([]adapter.Decorator, 0)
+
+	for i := 0; i < len(c.Adapters); i++ {
+		glog.V(2).Infof("---- Setup '%s' Adapter ----", c.Adapters[i])
 		switch c.Adapters[i] {
 		case "audit":
 			ds = append(ds, adapter.Audit(log.New(os.Stdout, "[audit adapter]", 0)))
 		case "logging":
 			ds = append(ds, adapter.Logging(log.New(os.Stdout, "[log adapter]", 0)))
 		default:
-			glog.Errorln("config found invalid adapter:" + c.Adapters[i])
+			glog.Errorf("Invalid adapter: %s", c.Adapters[i])
 		}
 	}
 
 	c.Adapter = adapter.ThisDecorate(adapter.MockAdapter{}, ds)
-
 }
 
 //eventually this would be a load balancer algorithm function
@@ -262,6 +285,7 @@ func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
 	myrand := random(0, rCnt)
 	if !c.Replicas[myrand].Healthy {
 		glog.V(2).Infoln("random replica was not healthy")
+
 		//find first healthy replica
 		for i := 0; i < len(c.Replicas); i++ {
 			if c.Replicas[i].Healthy {
@@ -271,11 +295,14 @@ func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
 		}
 
 		glog.V(2).Infoln("no healthy replica found")
+
 		if c.Master.Healthy {
 			glog.V(2).Infoln("master is healthy will use instead of replica!")
 			return &c.Master, err
 		}
+
 		glog.V(2).Infoln("master is unhealthy and no healthy replica found")
+
 		return &c.Master, errors.New("master and all replicas are unhealthy")
 	}
 
@@ -290,7 +317,7 @@ func random(min, max int) int {
 
 func checkError(err error) {
 	if err != nil {
-		glog.Fatalf("Fatal   error:  %s", err.Error())
+		glog.Fatalf("Fatal error:  %s", err.Error())
 	}
 }
 
