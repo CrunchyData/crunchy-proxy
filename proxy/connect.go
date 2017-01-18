@@ -22,11 +22,11 @@ import (
 	"net"
 )
 
-func connect(cfg *config.Config, client net.Conn) error {
+func connect(client net.Conn) error {
 	glog.V(2).Infoln("[proxy] connect start")
 
-	cfg.GetAllConnections()
-	glog.V(2).Infoln("replicas cnt=%d\n", len(cfg.Replicas))
+	config.Cfg.GetAllConnections()
+	glog.V(2).Infoln("replicas cnt=%d\n", len(config.Cfg.Replicas))
 
 	masterBuf := make([]byte, 4096)
 	var masterReadLen int
@@ -47,8 +47,8 @@ func connect(cfg *config.Config, client net.Conn) error {
 
 	LogProtocol("-->", "startup", masterBuf, clientLen)
 
-	masterReadLen, err = cfg.Master.TCPConn.Write(masterBuf[:clientLen])
-	masterReadLen, err = cfg.Master.TCPConn.Read(masterBuf)
+	masterReadLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:clientLen])
+	masterReadLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
 
 	if err != nil {
 		glog.Errorln("master WriteRead error:" + err.Error())
@@ -75,8 +75,8 @@ func connect(cfg *config.Config, client net.Conn) error {
 		}
 
 		//write client response to master
-		masterReadLen, err = cfg.Master.TCPConn.Write(masterBuf[:clientLen])
-		masterReadLen, err = cfg.Master.TCPConn.Read(masterBuf)
+		masterReadLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:clientLen])
+		masterReadLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
 		if err != nil {
 			glog.Errorln("master WriteRead error:" + err.Error())
 		}
@@ -111,8 +111,8 @@ func connect(cfg *config.Config, client net.Conn) error {
 	//
 	//process the 'p' password message from the client
 	//
-	masterReadLen, err = cfg.Master.TCPConn.Write(masterBuf[:clientLen])
-	masterReadLen, err = cfg.Master.TCPConn.Read(masterBuf)
+	masterReadLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:clientLen])
+	masterReadLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
 	if err != nil {
 		glog.Errorln("master WriteRead error:" + err.Error())
 	}
@@ -134,7 +134,7 @@ func connect(cfg *config.Config, client net.Conn) error {
 	//after authenticating to the master, we terminate this connection
 	//will use pool connections for the rest of the user session
 	termMsg := GetTerminateMessage()
-	masterReadLen, err = cfg.Master.TCPConn.Write(termMsg)
+	masterReadLen, err = config.Cfg.Master.TCPConn.Write(termMsg)
 	if err != nil {
 		glog.Errorln("master WriteRead error on term msg:" + err.Error())
 	}

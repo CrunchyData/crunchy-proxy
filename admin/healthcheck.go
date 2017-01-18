@@ -27,24 +27,24 @@ import (
 const DEFAULT_HEALTHCHECK_QUERY = "SELECT now();"
 const DEFAULT_HEALTHCHECK_DELAY = 10
 
-func StartHealthcheck(c *config.Config) {
+func StartHealthcheck() {
 
 	var result bool
 	var mutex = &sync.Mutex{}
 	var event ProxyEvent
 
 	// If a healthcheck query is not provided, then use the default.
-	if c.Healthcheck.Query == "" {
-		c.Healthcheck.Query = DEFAULT_HEALTHCHECK_QUERY
+	if config.Cfg.Healthcheck.Query == "" {
+		config.Cfg.Healthcheck.Query = DEFAULT_HEALTHCHECK_QUERY
 		glog.Infof("[hc] Healthcheck query is not specified, using default: %s\n",
-			c.Healthcheck.Query)
+			config.Cfg.Healthcheck.Query)
 	}
 
 	// If a healthcheck delay is not provided, then use the default.
-	if c.Healthcheck.Delay == 0 {
-		c.Healthcheck.Delay = DEFAULT_HEALTHCHECK_DELAY
+	if config.Cfg.Healthcheck.Delay == 0 {
+		config.Cfg.Healthcheck.Delay = DEFAULT_HEALTHCHECK_DELAY
 		glog.Infof("[hc] Healthcheck delay is not specified, using default: %d\n",
-			c.Healthcheck.Delay)
+			config.Cfg.Healthcheck.Delay)
 	}
 
 	// Start healthcheck of all nodes.
@@ -52,7 +52,7 @@ func StartHealthcheck(c *config.Config) {
 
 		// Check master node.
 		glog.V(2).Info("[hc] Checking Master")
-		result = healthcheckQuery(c.Credentials, c.Healthcheck.Query, c.Master)
+		result = healthcheckQuery(config.Cfg.Credentials, config.Cfg.Healthcheck.Query, config.Cfg.Master)
 
 		event = ProxyEvent{
 			Name:    "hc",
@@ -64,13 +64,13 @@ func StartHealthcheck(c *config.Config) {
 		}
 
 		mutex.Lock()
-		c.Master.Healthy = result
+		config.Cfg.Master.Healthy = result
 		mutex.Unlock()
 
 		// Check replica nodes.
-		for i := range c.Replicas {
+		for i := range config.Cfg.Replicas {
 			glog.V(2).Infof("[hc] Checking Replica %d\n", i)
-			result = healthcheckQuery(c.Credentials, c.Healthcheck.Query, c.Replicas[i])
+			result = healthcheckQuery(config.Cfg.Credentials, config.Cfg.Healthcheck.Query, config.Cfg.Replicas[i])
 
 			event = ProxyEvent{
 				Name:    "hc",
@@ -82,12 +82,12 @@ func StartHealthcheck(c *config.Config) {
 			}
 
 			mutex.Lock()
-			c.Replicas[i].Healthy = result
+			config.Cfg.Replicas[i].Healthy = result
 			mutex.Unlock()
 		}
 
 		// Wait specified delay period before checking again.
-		time.Sleep(time.Duration(c.Healthcheck.Delay) * time.Second)
+		time.Sleep(time.Duration(config.Cfg.Healthcheck.Delay) * time.Second)
 	}
 }
 

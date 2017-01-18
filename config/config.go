@@ -87,6 +87,8 @@ type Config struct {
 	Adapter          adapter.Adapter `json:"-"`
 }
 
+var Cfg Config
+
 func (c Config) Print() {
 	str, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -151,7 +153,7 @@ func PrintExample() {
 	glog.V(2).Infoln(string(str))
 }
 
-func ReadConfig() Config {
+func ReadConfig() {
 
 	var filePath string
 	flag.StringVar(&filePath, "config", "", "a configuration file")
@@ -162,47 +164,45 @@ func ReadConfig() Config {
 		os.Exit(1)
 	}
 
-	var cfg Config
 	var err error
 	var byt []byte
 
 	if byt, err = ioutil.ReadFile(filePath); err != nil {
 		panic(err)
 	}
-	if err = json.Unmarshal(byt, &cfg); err != nil {
+	if err = json.Unmarshal(byt, &Cfg); err != nil {
 		panic(err)
 	}
 
-	cfg.Master.TCPAddr, err = net.ResolveTCPAddr("tcp4", cfg.Master.HostPort)
+	Cfg.Master.TCPAddr, err = net.ResolveTCPAddr("tcp4", Cfg.Master.HostPort)
 	checkError(err)
-	for n := 0; n < len(cfg.Replicas); n++ {
-		cfg.Replicas[n].TCPAddr, err = net.ResolveTCPAddr("tcp4", cfg.Replicas[n].HostPort)
+	for n := 0; n < len(Cfg.Replicas); n++ {
+		Cfg.Replicas[n].TCPAddr, err = net.ResolveTCPAddr("tcp4", Cfg.Replicas[n].HostPort)
 		checkError(err)
 	}
 
-	if cfg.ReadAnnotation == "" {
-		cfg.ReadAnnotation = DEFAULT_READ_ANNOTATION
+	if Cfg.ReadAnnotation == "" {
+		Cfg.ReadAnnotation = DEFAULT_READ_ANNOTATION
 		glog.Infof("[config] ReadAnnotation is not specified, using default: %s\n",
-			cfg.ReadAnnotation)
+			Cfg.ReadAnnotation)
 	}
 
-	if cfg.StartAnnotation == "" {
-		cfg.StartAnnotation = DEFAULT_START_ANNOTATION
+	if Cfg.StartAnnotation == "" {
+		Cfg.StartAnnotation = DEFAULT_START_ANNOTATION
 		glog.Infof("[config] StartAnnotation is not specified, using default: %s\n",
-			cfg.StartAnnotation)
+			Cfg.StartAnnotation)
 	}
 
-	if cfg.FinishAnnotation == "" {
-		cfg.FinishAnnotation = DEFAULT_FINISH_ANNOTATION
+	if Cfg.FinishAnnotation == "" {
+		Cfg.FinishAnnotation = DEFAULT_FINISH_ANNOTATION
 		glog.Infof("[config] FinishAnnotation is not specified, using default: %s\n",
-			cfg.FinishAnnotation)
+			Cfg.FinishAnnotation)
 	}
 
-	glog.V(2).Infof("[config] %s is the ReadAnnotation", cfg.ReadAnnotation)
-	glog.V(2).Infof("[config] %s is the StartAnnotation", cfg.StartAnnotation)
-	glog.V(2).Infof("[config] %s is the FinishAnnotation", cfg.FinishAnnotation)
+	glog.V(2).Infof("[config] %s is the ReadAnnotation", Cfg.ReadAnnotation)
+	glog.V(2).Infof("[config] %s is the StartAnnotation", Cfg.StartAnnotation)
+	glog.V(2).Infof("[config] %s is the FinishAnnotation", Cfg.FinishAnnotation)
 
-	return cfg
 }
 
 func (n *Node) GetConnection() (*net.TCPConn, error) {

@@ -24,11 +24,9 @@ import (
 	"syscall"
 )
 
-var cfg config.Config
-
 func main() {
 	//get the Config
-	cfg = config.ReadConfig()
+	config.ReadConfig()
 
 	glog.Infoln("main starting...")
 
@@ -41,16 +39,16 @@ func main() {
 		os.Exit(0)
 	}()
 
-	go admin.StartHealthcheck(&cfg)
-	cfg.SetupAdapters()
-	cfg.PrintNodeInfo()
+	go admin.StartHealthcheck()
+	config.Cfg.SetupAdapters()
+	config.Cfg.PrintNodeInfo()
 
-	go admin.Initialize(&cfg)
+	go admin.Initialize()
 
-	if cfg.Pool.Enabled {
-		proxy.SetupPools(&cfg)
+	if config.Cfg.Pool.Enabled {
+		proxy.SetupPools()
 	}
 
-	proxy.ListenAndServe(&cfg)
+	proxy.ListenAndServe()
 
 }

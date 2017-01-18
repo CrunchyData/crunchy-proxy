@@ -269,12 +269,12 @@ func md5s(s string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-func Authenticate(cfg *config.Config, node *config.Node, conn *net.TCPConn) {
+func Authenticate(node *config.Node, conn *net.TCPConn) {
 	var readLen, writeLen int
 	var err error
 	var buf []byte
 
-	startupMsg := getStartupMessage(cfg, node)
+	startupMsg := getStartupMessage(node)
 
 	//write to backend
 	writeLen, err = conn.Write(startupMsg)
@@ -300,7 +300,7 @@ func Authenticate(cfg *config.Config, node *config.Node, conn *net.TCPConn) {
 	glog.V(2).Infof("salt from AuthenticationRequest was %s %x\n", string(salt), salt)
 
 	//create password message and send back to backend
-	pswMsg := getPasswordMessage(salt, cfg.Credentials.Username, cfg.Credentials.Password)
+	pswMsg := getPasswordMessage(salt, config.Cfg.Credentials.Username, config.Cfg.Credentials.Password)
 
 	//write to backend
 	writeLen, err = conn.Write(pswMsg)
@@ -352,7 +352,7 @@ func getPasswordMessage(salt []byte, username string, password string) []byte {
 
 }
 
-func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
+func getStartupMessage(node *config.Node) []byte {
 
 	//send startup packet
 	var buffer []byte
@@ -383,7 +383,7 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	//null terminate the string
 	buffer = append(buffer, 0)
 
-	value = cfg.Credentials.Username
+	value = config.Cfg.Credentials.Username
 	buffer = append(buffer, value...)
 	//null terminate the string
 	buffer = append(buffer, 0)
@@ -399,7 +399,7 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	buffer = append(buffer, key...)
 	//null terminate the string
 	buffer = append(buffer, 0)
-	value = cfg.Credentials.Database
+	value = config.Cfg.Credentials.Database
 	buffer = append(buffer, value...)
 	//null terminate the string
 	buffer = append(buffer, 0)

@@ -24,19 +24,16 @@ import (
 
 const DEFAULT_ADMIN_HOST_PORT = "127.0.0.1:10000"
 
-var globalconfig *config.Config
-
-func Initialize(config *config.Config) {
+func Initialize() {
 	glog.Infoln("[adminserver] ---- Initializing Admin Server ----")
 
-	if config.AdminHostPort == "" {
-		config.AdminHostPort = DEFAULT_ADMIN_HOST_PORT
+	if config.Cfg.AdminHostPort == "" {
+		config.Cfg.AdminHostPort = DEFAULT_ADMIN_HOST_PORT
 		glog.Infof("[adminserver] Admin Server host and port is not specified, using default: %s\n",
 			DEFAULT_ADMIN_HOST_PORT)
 	}
 
-	glog.Infof("[adminserver] Initializing on %s", config.AdminHostPort)
-	globalconfig = config
+	glog.Infof("[adminserver] Initializing on %s", config.Cfg.AdminHostPort)
 
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
@@ -58,7 +55,7 @@ func Initialize(config *config.Config) {
 
 	http.Handle("/api/", http.StripPrefix("/api", api.MakeHandler()))
 
-	err = http.ListenAndServe(config.AdminHostPort, nil)
+	err = http.ListenAndServe(config.Cfg.AdminHostPort, nil)
 
 	if err != nil {
 		glog.Errorf("An error occurred starting up the admin server, %s\n", err.Error())
@@ -69,7 +66,7 @@ func GetConfig(w rest.ResponseWriter, r *rest.Request) {
 	glog.V(2).Infoln("[adminserver] /config requested")
 
 	w.Header().Set("Content-Type", "text/json")
-	w.WriteJson(globalconfig)
+	w.WriteJson(config.Cfg)
 
 	glog.V(2).Infoln("[adminserver] /config response sent")
 }
@@ -89,15 +86,15 @@ func GetStats(w rest.ResponseWriter, r *rest.Request) {
 
 	stats := AdminStats{}
 
-	stats.Nodes = make([]AdminStatsNode, (1 + len(globalconfig.Replicas)))
+	stats.Nodes = make([]AdminStatsNode, (1 + len(config.Cfg.Replicas)))
 
 	// Add the master node statistics.
-	stats.Nodes[0].HostPort = globalconfig.Master.HostPort
-	stats.Nodes[0].Queries = globalconfig.Master.Stats.Queries
-	stats.Nodes[0].Healthy = globalconfig.Master.Healthy
+	stats.Nodes[0].HostPort = config.Cfg.Master.HostPort
+	stats.Nodes[0].Queries = config.Cfg.Master.Stats.Queries
+	stats.Nodes[0].Healthy = config.Cfg.Master.Healthy
 
 	// Add the replica nodes statistics.
-	for index, replica := range globalconfig.Replicas {
+	for index, replica := range config.Cfg.Replicas {
 		stats.Nodes[index+1].HostPort = replica.HostPort
 		stats.Nodes[index+1].Queries = replica.Stats.Queries
 		stats.Nodes[index+1].Healthy = replica.Healthy

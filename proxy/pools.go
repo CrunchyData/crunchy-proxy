@@ -24,28 +24,28 @@ func ReturnConnection(ch chan int, connIndex int) {
 	ch <- connIndex
 }
 
-func SetupPools(c *config.Config) {
-	if !c.Pool.Enabled {
+func SetupPools() {
+	if !config.Cfg.Pool.Enabled {
 		glog.Errorln("[pool] pooling not enabled")
 		return
 	}
 
 	glog.V(2).Infoln("[pool] pooling enabled")
 
-	for i := 0; i < len(c.Replicas); i++ {
-		setupPoolForNode(c, &c.Replicas[i])
+	for i := 0; i < len(config.Cfg.Replicas); i++ {
+		setupPoolForNode(&config.Cfg.Replicas[i])
 	}
 
-	setupPoolForNode(c, &c.Master)
+	setupPoolForNode(&config.Cfg.Master)
 
 }
 
-func setupPoolForNode(c *config.Config, node *config.Node) {
+func setupPoolForNode(node *config.Node) {
 	var err error
 
-	node.Pool.Channel = make(chan int, c.Pool.Capacity)
-	node.Pool.Connections = make([]*net.TCPConn, c.Pool.Capacity)
-	for j := 0; j < c.Pool.Capacity; j++ {
+	node.Pool.Channel = make(chan int, config.Cfg.Pool.Capacity)
+	node.Pool.Connections = make([]*net.TCPConn, config.Cfg.Pool.Capacity)
+	for j := 0; j < config.Cfg.Pool.Capacity; j++ {
 		node.Pool.Channel <- j
 		//add a connection to the node pool
 		glog.V(2).Infoln("[pool] adding conn to node %s pool\n", node.HostPort)
@@ -53,6 +53,6 @@ func setupPoolForNode(c *config.Config, node *config.Node) {
 		if err != nil {
 			glog.Errorln("error in getting pool conn for node " + err.Error())
 		}
-		Authenticate(c, node, node.Pool.Connections[j])
+		Authenticate(node, node.Pool.Connections[j])
 	}
 }

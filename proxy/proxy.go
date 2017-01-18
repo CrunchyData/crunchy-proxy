@@ -21,11 +21,11 @@ import (
 	"net"
 )
 
-func ListenAndServe(config *config.Config) {
-	glog.Infoln("[proxy] ListenAndServe config=" + config.Name)
-	glog.Infoln("[proxy] ListenAndServe listening on ipaddr=" + config.HostPort)
+func ListenAndServe() {
+	glog.Infoln("[proxy] ListenAndServe config=" + config.Cfg.Name)
+	glog.Infoln("[proxy] ListenAndServe listening on ipaddr=" + config.Cfg.HostPort)
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", config.HostPort)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", config.Cfg.HostPort)
 	checkError(err)
 
 	var listener net.Listener
@@ -33,22 +33,22 @@ func ListenAndServe(config *config.Config) {
 	listener, err = net.ListenTCP("tcp", tcpAddr)
 	checkError(err)
 
-	handleListener(config, listener)
+	handleListener(listener)
 }
 
-func handleListener(config *config.Config, listener net.Listener) {
+func handleListener(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			continue
 		}
-		go handleClient(config, conn)
+		go handleClient(conn)
 	}
 }
-func handleClient(cfg *config.Config, client net.Conn) {
+func handleClient(client net.Conn) {
 	glog.V(2).Infoln("[proxy] handleClient start")
 
-	err := connect(cfg, client)
+	err := connect(client)
 	if err != nil {
 		glog.Errorln("client could not authenticate and connect")
 		return
@@ -83,7 +83,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 		glog.V(3).Infoln("here is a new msgType=" + msgType)
 
 		// adapt inbound data
-		err = cfg.Adapter.Do(masterBuf, reqLen)
+		err = config.Cfg.Adapter.Do(masterBuf, reqLen)
 		if err != nil {
 			glog.Errorln("[proxy] error adapting inbound" + err.Error())
 		}
@@ -93,7 +93,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 			return
 		} else if msgType == "Q" {
 			poolIndex = -1
-			writeCase, startCase, finishCase = IsWriteAnno(cfg.ReadAnnotation, cfg.StartAnnotation, cfg.FinishAnnotation, masterBuf)
+			writeCase, startCase, finishCase = IsWriteAnno(config.Cfg.ReadAnnotation, config.Cfg.StartAnnotation, config.Cfg.FinishAnnotation, masterBuf)
 			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
 			if statementBlock {
 				glog.V(2).Infof("inside a statementBlock") //keep using the same node and connection
@@ -101,7 +101,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				if startCase {
 					statementBlock = true
 				}
-				nextNode, err = cfg.GetNextNode(writeCase)
+				nextNode, err = config.Cfg.GetNextNode(writeCase)
 				if err != nil {
 					glog.Errorln(err.Error())
 					return
@@ -128,7 +128,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 
 			//write the query to backend then read and write
 			//till we get Q from the backend
-			err = processBackend(cfg, client, backendConn, masterBuf)
+			err = processBackend(client, backendConn, masterBuf)
 
 			if poolIndex != -1 {
 				ReturnConnection(nextNode.Pool.Channel, poolIndex)
@@ -142,7 +142,7 @@ func handleClient(cfg *config.Config, client net.Conn) {
 				config.UpdateHealth(nextNode, false)
 
 				//get next node as usual
-				nextNode, err = cfg.GetNextNode(writeCase)
+				nextNode, err = config.Cfg.GetNextNode(writeCase)
 				if err != nil {
 					glog.Errorln("could not get node for query retry")
 					glog.Errorln(err.Error())
@@ -160,8 +160,8 @@ func handleClient(cfg *config.Config, client net.Conn) {
 
 			glog.V(2).Infoln("XXXX msgType here is " + msgType)
 
-			writeLen, err = cfg.Master.TCPConn.Write(masterBuf[:reqLen])
-			readLen, err = cfg.Master.TCPConn.Read(masterBuf)
+			writeLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:reqLen])
+			readLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
 			if err != nil {
 				glog.Errorln("master WriteRead error:" + err.Error())
 			}
@@ -188,7 +188,7 @@ func checkError(err error) {
 	}
 }
 
-func processBackend(cfg *config.Config, client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
+func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
 	var writeLen, msgLen, readLen int
 	var msgType string
 	var err error
@@ -200,7 +200,7 @@ func processBackend(cfg *config.Config, client net.Conn, backendConn *net.TCPCon
 			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
 			msgLen = msgLen + 1 //add 1 for the message first byte
 			//adapt msgs going back to client
-			err = cfg.Adapter.Do(masterBuf, readLen)
+			err = config.Cfg.Adapter.Do(masterBuf, readLen)
 			if err != nil {
 				glog.Errorln("[proxy] error adapting outbound" + err.Error())
 			}
