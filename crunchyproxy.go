@@ -43,7 +43,7 @@ func main() {
 
 	go admin.StartHealthcheck(&cfg)
 	cfg.SetupAdapters()
-	cfg.PrintNodeInfo("after SetupAdapters")
+	cfg.PrintNodeInfo()
 
 	go admin.Initialize(&cfg)
 
