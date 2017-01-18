@@ -23,11 +23,10 @@ import (
 func Connect() (*sql.DB, error) {
 	var conn *sql.DB
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
-	log.Println("Connect starting...")
 
 	var err error
 	//os.Setenv("PGCONNECTION_TIMEOUT", "20")
-	var hostportarr = strings.Split(hostport, ":")
+	var hostportarr = strings.Split(HostPort, ":")
 	var dbHost = hostportarr[0]
 	var dbPort = hostportarr[1]
 
@@ -36,8 +35,6 @@ func Connect() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println("got a connection")
 
 	return conn, err
 }
