@@ -22,16 +22,17 @@ import (
 	"net/http"
 )
 
-const DEFAULT_ADMIN_IPADDR = ":10000"
+const DEFAULT_ADMIN_HOST_PORT = "127.0.0.1:10000"
 
 var globalconfig *config.Config
 
 func Initialize(config *config.Config) {
+	glog.Infoln("[adminserver] ---- Initializing Admin Server ----")
 
-	var ipaddr = DEFAULT_ADMIN_IPADDR
-	glog.V(2).Infoln("config.AdminHostPort is [" + config.AdminHostPort + "]")
-	if config.AdminHostPort != "" {
-		ipaddr = config.AdminHostPort
+	if config.AdminHostPort == "" {
+		config.AdminHostPort = DEFAULT_ADMIN_HOST_PORT
+		glog.Infof("[adminserver] Admin Server host and port is not specified, using default: %s\n",
+			DEFAULT_ADMIN_IPADDR)
 	}
 	glog.V(2).Infoln("adminserver: initializing on " + ipaddr)
 	globalconfig = config
@@ -50,7 +51,7 @@ func Initialize(config *config.Config) {
 
 	http.Handle("/api/", http.StripPrefix("/api", api.MakeHandler()))
 
-	http.ListenAndServe(ipaddr, nil)
+	http.ListenAndServe(config.AdminIPAddr, nil)
 }
 
 func GetConfig(w rest.ResponseWriter, r *rest.Request) {
