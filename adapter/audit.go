@@ -14,14 +14,30 @@ limitations under the License.
 package adapter
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"time"
 )
+
+var file *os.File
+
+func init() {
+	var err error
+	file, err = os.OpenFile("/tmp/audit.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	//file, err = os.Create("/tmp/audit.log")
+	if err != nil {
+		log.Println(err.Error())
+	}
+}
 
 // Audit will create a adapter decorator with auditing concerns.
 func Audit(l *log.Logger) Decorator {
 	return func(c Adapter) Adapter {
 		return AdapterFunc(func(r []byte, i int) error {
-			l.Printf("msg len=%d\n", i)
+			now := time.Now()
+			file.WriteString(fmt.Sprintf("%s msg len=%d\n", now.String(), i))
+			file.Sync()
 			return c.Do(r, i)
 		})
 	}

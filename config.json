@@ -19,6 +19,7 @@
         "database": "postgres"
     },
     "Adapters": [
+	    "audit"
     ],
     "Master": {
         "HostPort": "127.0.0.1:12000",
