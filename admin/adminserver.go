@@ -32,34 +32,46 @@ func Initialize(config *config.Config) {
 	if config.AdminHostPort == "" {
 		config.AdminHostPort = DEFAULT_ADMIN_HOST_PORT
 		glog.Infof("[adminserver] Admin Server host and port is not specified, using default: %s\n",
-			DEFAULT_ADMIN_IPADDR)
+			DEFAULT_ADMIN_HOST_PORT)
 	}
-	glog.V(2).Infoln("adminserver: initializing on " + ipaddr)
+
+	glog.Infof("[adminserver] Initializing on %s", config.AdminHostPort)
 	globalconfig = config
 
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
+
+	/*
+	 * Setup the admin server HTTP routes.
+	 */
 	router, err := rest.MakeRouter(
 		&rest.Route{"GET", "/config", GetConfig},
 		&rest.Route{"GET", "/stats", GetStats},
 		&rest.Route{"GET", "/stream", StreamEvents},
 	)
+
 	if err != nil {
-		glog.Fatalln(err)
+		glog.Fatalln("An error occurred setting up the admin server routes, %s\n", err.Error())
 	}
+
 	api.SetApp(router)
 
 	http.Handle("/api/", http.StripPrefix("/api", api.MakeHandler()))
 
-	http.ListenAndServe(config.AdminIPAddr, nil)
+	err = http.ListenAndServe(config.AdminHostPort, nil)
+
+	if err != nil {
+		glog.Errorf("An error occurred starting up the admin server, %s\n", err.Error())
+	}
 }
 
 func GetConfig(w rest.ResponseWriter, r *rest.Request) {
-	glog.V(2).Infoln("adminserver: GetConfig called")
+	glog.V(2).Infoln("[adminserver] /config requested")
 
 	w.Header().Set("Content-Type", "text/json")
 	w.WriteJson(globalconfig)
-	glog.V(2).Infoln("adminserver: GetConfig report written")
+
+	glog.V(2).Infoln("[adminserver] /config response sent")
 }
 
 type AdminStatsNode struct {
@@ -73,21 +85,26 @@ type AdminStats struct {
 }
 
 func GetStats(w rest.ResponseWriter, r *rest.Request) {
-	glog.V(2).Infoln("adminserver: GetStats called")
+	glog.V(2).Infoln("[adminserver] /stats requested")
 
 	stats := AdminStats{}
-	stats.Nodes = make([]AdminStatsNode, 1+len(globalconfig.Replicas))
+
+	stats.Nodes = make([]AdminStatsNode, (1 + len(globalconfig.Replicas)))
+
+	// Add the master node statistics.
 	stats.Nodes[0].HostPort = globalconfig.Master.HostPort
 	stats.Nodes[0].Queries = globalconfig.Master.Stats.Queries
 	stats.Nodes[0].Healthy = globalconfig.Master.Healthy
 
-	for i := 1; i < len(globalconfig.Replicas)+1; i++ {
-		stats.Nodes[i].HostPort = globalconfig.Replicas[i-1].HostPort
-		stats.Nodes[i].Queries = globalconfig.Replicas[i-1].Stats.Queries
-		stats.Nodes[i].Healthy = globalconfig.Replicas[i-1].Healthy
+	// Add the replica nodes statistics.
+	for index, replica := range globalconfig.Replicas {
+		stats.Nodes[index+1].HostPort = replica.HostPort
+		stats.Nodes[index+1].Queries = replica.Stats.Queries
+		stats.Nodes[index+1].Healthy = replica.Healthy
 	}
 
 	w.Header().Set("Content-Type", "text/json")
 	w.WriteJson(&stats)
-	glog.V(2).Infoln("adminserver: GetStatus report written")
+
+	glog.V(2).Infoln("[adminserver] /stats response sent")
 }
