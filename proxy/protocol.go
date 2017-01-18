@@ -25,6 +25,8 @@ import (
 	"net"
 )
 
+const PROTOCOL_VERSION int32 = 196608
+
 func ProtocolMsgType(buf []byte) (string, int) {
 	var msgLen int32
 
@@ -361,21 +363,21 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	binary.BigEndian.PutUint32(x, uint32(1))
 	buffer = append(buffer, x...)
 
-	//w.int32(196608)
-	binary.BigEndian.PutUint32(x, uint32(196608))
+	// Set the protocol version.
+	binary.BigEndian.PutUint32(x, uint32(PROTOCOL_VERSION))
 	buffer = append(buffer, x...)
 
+	/*
+	 * The protocol version number is followed by one or more pairs of
+	 * parameter name and value strings. A zero byte is required as a
+	 * terminator after the last name/value pair. Parameters can appear in any
+	 * order. 'user' is required, others are optional.
+	 */
 	var key, value string
-	key = "database"
-	buffer = append(buffer, key...)
-	//null terminate the string
-	buffer = append(buffer, 0)
 
-	value = cfg.Credentials.Database
-	buffer = append(buffer, value...)
-	//null terminate the string
-	buffer = append(buffer, 0)
-
+	/*
+	 * Set the 'user' parameter.  This is the only *required* parameter.
+	 */
 	key = "user"
 	buffer = append(buffer, key...)
 	//null terminate the string
@@ -386,6 +388,27 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	//null terminate the string
 	buffer = append(buffer, 0)
 
+	/*
+	 * Set the 'database' parameter.  If no database name has been specified,
+	 * then the default value is the user's name.
+	 *
+	 * TODO: Determine if the default should be handled here or if it assumed
+	 * by the backend.
+	 */
+	key = "database"
+	buffer = append(buffer, key...)
+	//null terminate the string
+	buffer = append(buffer, 0)
+	value = cfg.Credentials.Database
+	buffer = append(buffer, value...)
+	//null terminate the string
+	buffer = append(buffer, 0)
+
+	/*
+	 * Set the 'client_encoding' parameter.
+	 *
+	 * TODO: Add this as a configuration specific item.
+	 */
 	key = "client_encoding"
 	buffer = append(buffer, key...)
 	//null terminate the string
@@ -396,6 +419,9 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	//null terminate the string
 	buffer = append(buffer, 0)
 
+	/*
+	 * Set the 'datestyle' parameter.
+	 */
 	key = "datestyle"
 	buffer = append(buffer, key...)
 	//null terminate the string
@@ -406,6 +432,9 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	//null terminate the string
 	buffer = append(buffer, 0)
 
+	/*
+	 * Set the 'application_name' parameter.
+	 */
 	key = "application_name"
 	buffer = append(buffer, key...)
 	//null terminate the string
@@ -416,6 +445,11 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	//null terminate the string
 	buffer = append(buffer, 0)
 
+	/*
+	 * Set the 'extra_float_digits' parameter.
+	 *
+	 * TODO: Determine why this parameter is necessary.
+	 */
 	key = "extra_float_digits"
 	buffer = append(buffer, key...)
 	//null terminate the string
@@ -426,9 +460,10 @@ func getStartupMessage(cfg *config.Config, node *config.Node) []byte {
 	//null terminate the string
 	buffer = append(buffer, 0)
 
+	// TODO: Determine if this last null byte is necessary.
 	buffer = append(buffer, 0)
 
-	//update the msg len
+	// update the msg len
 	binary.BigEndian.PutUint32(buffer, uint32(len(buffer)))
 
 	return buffer
