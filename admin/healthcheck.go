@@ -24,6 +24,9 @@ import (
 	"time"
 )
 
+const DEFAULT_HEALTHCHECK_QUERY = "SELECT now();"
+const DEFAULT_HEALTHCHECK_DELAY = 10
+
 func StartHealthcheck(c *config.Config) {
 
 	var result bool
@@ -32,14 +35,14 @@ func StartHealthcheck(c *config.Config) {
 
 	// If a healthcheck query is not provided, then use the default.
 	if c.Healthcheck.Query == "" {
-		c.Healthcheck.Query = "select now()"
+		c.Healthcheck.Query = DEFAULT_HEALTHCHECK_QUERY
 		glog.Infof("[hc] Healthcheck query is not specified, using default: %s\n",
 			c.Healthcheck.Query)
 	}
 
 	// If a healthcheck delay is not provided, then use the default.
 	if c.Healthcheck.Delay == 0 {
-		c.Healthcheck.Delay = 10
+		c.Healthcheck.Delay = DEFAULT_HEALTHCHECK_DELAY
 		glog.Infof("[hc] Healthcheck delay is not specified, using default: %d\n",
 			c.Healthcheck.Delay)
 	}
