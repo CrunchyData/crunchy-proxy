@@ -7,7 +7,7 @@ image::docs/crunchy_logo.png?raw=true[]
 
 *crunchy-proxy* is a minimal PostgreSQL-aware proxy used to handle PostgreSQL application requests.  The diagram below depicts a PostgreSQL client application connecting to the *crunchy-proxy*, which appears to the PostgreSQL application as any other PostgreSQL database connection.  The *crunchy-proxy* accepts the inbound client requests, and routes them to an appropriate PostgreSQL cluster member (as described in more detail below).
 
-image::docs/proxy-diagram.png?raw=true[]
+image::docs/proxy-diagram.png?raw=true["scaledwidth="50%"]
 
 To the PostgreSQL server, the *crunchy-proxy* is transparent and appears as any other
 PostgreSQL client would appear.  As described in more detail below, the *crunchy-proxy* currently provides the following capabilities:
