@@ -25,15 +25,13 @@ import (
 const DEFAULT_ADMIN_HOST_PORT = "127.0.0.1:10000"
 
 func Initialize() {
-	glog.Infoln("[adminserver] ---- Initializing Admin Server ----")
-
 	if config.Cfg.AdminHostPort == "" {
 		config.Cfg.AdminHostPort = DEFAULT_ADMIN_HOST_PORT
 		glog.Infof("[adminserver] Admin Server host and port is not specified, using default: %s\n",
 			DEFAULT_ADMIN_HOST_PORT)
 	}
 
-	glog.Infof("[adminserver] Initializing on %s", config.Cfg.AdminHostPort)
+	glog.Infof("[adminserver] Initializing admin server on %s", config.Cfg.AdminHostPort)
 
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)

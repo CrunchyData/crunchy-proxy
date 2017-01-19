@@ -36,16 +36,17 @@ func connect(client net.Conn) error {
 	var clientLen int
 
 	clientLen, err = client.Read(masterBuf)
+
 	if err != nil {
 		glog.Errorln("[proxy] error reading from client conn" + err.Error())
 		return err
 	}
+
 	thelen := binary.BigEndian.Uint32(masterBuf[:4])
 	theprotocol := binary.BigEndian.Uint32(masterBuf[4:8])
+
 	glog.V(2).Infoln("the len=%d the protocol=%d\n", thelen, theprotocol)
 	glog.V(2).Infoln("the msg=[%s] \n", string(masterBuf[8:]))
-
-	LogProtocol("-->", "startup", masterBuf, clientLen)
 
 	masterReadLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:clientLen])
 	masterReadLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
@@ -54,25 +55,27 @@ func connect(client net.Conn) error {
 		glog.Errorln("master WriteRead error:" + err.Error())
 	}
 
-	LogProtocol("<--", "master", masterBuf, masterReadLen)
-	//here you will get an R authrequest or an N notice from the master
+	msgType = string(masterBuf[0])
 
-	msgType, _ = ProtocolMsgType(masterBuf)
 	if msgType == "N" {
 		//write to client only the master "N" response
-		msgType, _ = ProtocolMsgType(masterBuf)
 		glog.V(2).Infoln("sending N to client")
 		_, err = client.Write(masterBuf[:masterReadLen])
+
 		if err != nil {
 			glog.Errorln("[proxy] closing client conn" + err.Error())
 			return err
 		}
+
 		glog.V(2).Infoln("read client response after N was sent")
 		clientLen, err = client.Read(masterBuf)
+
 		if err != nil {
 			glog.Errorln("[proxy] error reading from client conn" + err.Error())
 			return err
 		}
+
+		msgType = string(masterBuf[0])
 
 		//write client response to master
 		masterReadLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:clientLen])
@@ -80,20 +83,18 @@ func connect(client net.Conn) error {
 		if err != nil {
 			glog.Errorln("master WriteRead error:" + err.Error())
 		}
-		msgType, _ = ProtocolMsgType(masterBuf)
 
 		glog.V(2).Infoln("read from master after N msgType=" + msgType)
 
 	}
 
-	//
-	//send R authentication request to client
-	//
-	msgType, msgLen = ProtocolMsgType(masterBuf)
+	// send R authentication request to client
 	glog.V(2).Infoln("sending msgType to client: %s msgLen=%d\n",
 		msgType, msgLen)
 	glog.V(2).Infoln("should be R Auth msg here send R auth to client")
+
 	_, err = client.Write(masterBuf[:masterReadLen])
+
 	if err != nil {
 		glog.Errorln("[proxy] closing client conn" + err.Error())
 		return err
@@ -106,8 +107,6 @@ func connect(client net.Conn) error {
 		return err
 	}
 
-	LogProtocol("-->", "master", masterBuf, clientLen)
-
 	//
 	//process the 'p' password message from the client
 	//
@@ -116,11 +115,8 @@ func connect(client net.Conn) error {
 	if err != nil {
 		glog.Errorln("master WriteRead error:" + err.Error())
 	}
-	msgType, msgLen = ProtocolMsgType(masterBuf)
+
 	glog.V(2).Infoln("pt 5 got msgType " + msgType)
-	if msgType == "R" {
-		LogProtocol("<--", "AuthenticationOK", masterBuf, masterReadLen)
-	}
 
 	//write to client only the master response
 	_, err = client.Write(masterBuf[:masterReadLen])
