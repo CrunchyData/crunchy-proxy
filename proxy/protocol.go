@@ -135,14 +135,6 @@ func StartupRequest(buf []byte, bufLen int) {
 	binary.Read(reader, binary.BigEndian, &startupProtocol)
 
 	glog.V(2).Infof("[protocol] StartupRequest: msglen=%d protocol=%d\n", msgLen, startupProtocol)
-	//parameters = string(buf[8 : bufLen-8])
-	/**
-	parameters = NullTermToStrings(buf[8 : bufLen-1])
-	for i := 0; i < len(parameters); i++ {
-		log.Printf("[protocol] startup parameter key:value: %s:%s \n", parameters[i], parameters[i+1])
-		i++
-	}
-	*/
 }
 
 func QueryRequest(buf []byte) {
