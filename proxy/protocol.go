@@ -27,62 +27,31 @@ import (
 
 const PROTOCOL_VERSION int32 = 196608
 
-func ProtocolMsgType(buf []byte) (string, int) {
-	var msgLen int32
+const (
+	AUTHENTICATION_OK            int32 = 0
+	AUTHENTICATION_KERBEROS_V5   int32 = 2
+	AUTHENTICATION_CLEAR_TEXT    int32 = 3
+	AUTHENTICATION_MD5           int32 = 5
+	AUTHENTICATION_SCM           int32 = 6
+	AUTHENTICATION_GSS           int32 = 7
+	AUTHENTICATION_GSS_CONTINUTE int32 = 8
+	AUTHENTICATION_SSPI          int32 = 9
+)
 
-	// Read the message length.
-	reader := bytes.NewReader(buf[1:5])
-	binary.Read(reader, binary.BigEndian, &msgLen)
-
-	glog.V(2).Infof("[protocol] %d msgLen\n", msgLen)
-
-	return string(buf[0]), int(msgLen)
-}
-
-func LogProtocol(direction string, hint string, buf []byte, bufLen int) {
-	var msgType byte
-
-	if hint == "startup" {
-		glog.V(2).Infof("[protocol] %s %s [%s]\n", direction, hint, "startup")
-		StartupRequest(buf, bufLen)
-		return
-	} else {
-		msgType = buf[0]
-		glog.V(2).Infof("[protocol] %s %s [%c]\n", direction, hint, msgType)
-		switch msgType {
-		case 'R':
-			AuthenticationRequest(buf)
-			return
-		case 'E':
-			ErrorResponse(buf)
-			return
-		case 'Q':
-			QueryRequest(buf)
-			return
-		case 'N':
-			NoticeResponse(buf)
-			return
-		case 'T':
-			RowDescription(buf, bufLen)
-			return
-		case 'D':
-			DataRow(buf)
-			return
-		case 'C':
-			CommandComplete(buf)
-			return
-		case 'X':
-			TerminateMessage(buf)
-			return
-		case 'p':
-			PasswordMessage(buf)
-			return
-		default:
-			glog.Errorf("[protocol] %s %s [%c] NOT handled!!\n", direction, hint, msgType)
-			return
-		}
-	}
-}
+// Constants for the message types
+const (
+	AUTHENTICATION_MESSAGE_TYPE   byte = 'R'
+	ERROR_MESSAGE_TYPE            byte = 'E'
+	EMPTY_QUERY_MESSAGE_TYPE      byte = 'I'
+	DESCRIBE_MESSAGE_TYPE         byte = 'D'
+	ROW_DESCRIPTION_MESSAGE_TYPE  byte = 'T'
+	DATA_ROW_MESSAGE_TYPE         byte = 'D'
+	QUERY_MESSAGE_TYPE            byte = 'Q'
+	COMMAND_COMPLETE_MESSAGE_TYPE byte = 'C'
+	TERMINATE_MESSAGE_TYPE        byte = 'X'
+	NOTICE_MESSAGE_TYPE           byte = 'N'
+	PASSWORD_MESSAGE_TYPE         byte = 'p'
+)
 
 func NullTermToStrings(b []byte) (s []string) {
 	var zb = []byte{0}
@@ -95,22 +64,172 @@ func NullTermToStrings(b []byte) (s []string) {
 	return
 }
 
-func AuthenticationRequest(buf []byte) []byte {
+func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 	var msgLength int32
 	var authType int32
 
 	// Read message length.
-	reader := bytes.NewReader(buf[1:5])
+	reader := bytes.NewReader(message[1:5])
 	binary.Read(reader, binary.BigEndian, &msgLength)
 
 	// Read authentication type.
-	reader.Reset(buf[5:9])
+	reader.Reset(message[5:9])
 	binary.Read(reader, binary.BigEndian, &authType)
 
-	var salt = []byte{buf[9], buf[10], buf[11], buf[12]}
-	var saltstr = string(salt)
-	glog.V(2).Infof("[protocol] AuthenticationRequest: msglen=%d type=%d salt=%x saltstr=%s\n", msgLength, authType, salt, saltstr)
-	return salt
+	switch authType {
+	case AUTHENTICATION_KERBEROS_V5:
+		glog.Fatalln("[protocol] KerberosV5 authentication is not currently supported.")
+	case AUTHENTICATION_CLEAR_TEXT:
+		return handleAuthClearText(connection, message)
+	case AUTHENTICATION_MD5:
+		return handleAuthMD5(connection, message)
+	case AUTHENTICATION_SCM:
+		glog.Fatalln("[protocol] SCM authenication is not currently supported.")
+	case AUTHENTICATION_GSS:
+		glog.Fatalln("[protocol] GSS authentication is not currently supported.")
+	case AUTHENTICATION_GSS_CONTINUTE:
+		glog.Fatalln("[protocol] GSS authentication is not currently supported.")
+	case AUTHENTICATION_SSPI:
+		glog.Fatalln("[protocol] SSPI authentication is not currently supported.")
+	default:
+		glog.Fatalf("[protocol] Unknown authentication method: %d\n", authType)
+	}
+
+	return false
+}
+
+func handleAuthClearText(conn *net.TCPConn, buf []byte) bool {
+	//return []byte{buf[9], buf[10], buf[11], buf[12]}
+	return true
+}
+
+func createMD5Password(username string, password string, salt string) string {
+	// Concatenate the password and the username together.
+	passwordString := fmt.Sprintf("%s%s", password, username)
+
+	// Compute the MD5 sum of the password+username string.
+	passwordString = fmt.Sprintf("%x", md5.Sum([]byte(passwordString)))
+
+	// Compute the MD5 sum of the password hash and the salt
+	passwordString = fmt.Sprintf("%s%s", passwordString, salt)
+	return fmt.Sprintf("md5%x", md5.Sum([]byte(passwordString)))
+}
+
+func createMD5PasswordMessage(username string, password string, salt string) []byte {
+	var message []byte
+
+	// Create an MD5 password value.
+	md5Password := createMD5Password(username, password, salt)
+
+	// Set the message type.
+	message = append(message, PASSWORD_MESSAGE_TYPE)
+
+	// Initialize the message length to zero.
+	messageLength := make([]byte, 4)
+	binary.BigEndian.PutUint32(messageLength, uint32(0))
+	message = append(message, messageLength...)
+
+	// Append the MD5 password to the message.
+	message = append(message, md5Password...)
+
+	// null terminate the message.
+	message = append(message, 0)
+
+	/*
+	 * Update the message length, subtracting the length of the message type
+	 * byte.
+	 */
+	binary.BigEndian.PutUint32(messageLength, uint32(len(message)-1))
+	copy(message[1:], messageLength)
+
+	return message
+}
+
+func handleAuthMD5(connection *net.TCPConn, message []byte) bool {
+	var writeLength, readLength int
+	var err error
+
+	// Get the authentication credentials.
+	username := config.Cfg.Credentials.Username
+	password := config.Cfg.Credentials.Password
+	salt := string(message[9:13])
+
+	// Create the password message.
+	passwordMessage := createMD5PasswordMessage(username, password, salt)
+
+	// Send the password message to the backend.
+	writeLength, err = connection.Write(passwordMessage)
+
+	// Check that write was successful.
+	if err != nil {
+		glog.Errorln("[protocol] Error sending password message to the backend.")
+		glog.Errorf("[protocol] %s", err.Error())
+	}
+
+	glog.V(2).Infof("[protocol] %d bytes sent to the backend.\n", writeLength)
+
+	// Read response from password message.
+	readLength, err = connection.Read(message)
+
+	// Check that read was successful.
+	if err != nil {
+		glog.Errorln("[protocol] Error receiving authentication response from the backend.")
+		glog.Errorf("[protocol] %s\n", err.Error())
+	}
+
+	glog.V(2).Infof("[protocol] %d bytes received from the backend.\n", readLength)
+
+	return isAuthenticationOk(message)
+}
+
+/*
+ * Check an Authentication Message to determine if it is an AuthenticationOK
+ * message.
+ *
+ * It is assumed that the message passed in has already been verified to be an
+ * Authentication Message.
+ */
+func isAuthenticationOk(message []byte) bool {
+	var authenticated bool = false
+
+	/*
+	 * Determine the response message type and process accordingly. The only
+	 * valid message types allowed here are Authentication and Error.
+	 */
+	messageType := getMessageType(message)
+
+	if messageType == AUTHENTICATION_MESSAGE_TYPE {
+		var messageValue int32
+
+		// Get the message length.
+		messageLength := getMessageLength(message)
+
+		// Get the message value.
+		reader := bytes.NewReader(message[5:9])
+		binary.Read(reader, binary.BigEndian, &messageValue)
+
+		return (messageLength == 8 && messageValue == 0)
+	} else if messageType == ERROR_MESSAGE_TYPE {
+		// TODO: handle error message appropriately.
+	} else {
+		// TODO: handle any other kind of message. This is techincally an error
+		// state as well, however, not explicitly one from the backend.
+	}
+
+	return authenticated
+}
+
+func getMessageType(message []byte) byte {
+	return message[0]
+}
+
+func getMessageLength(message []byte) int32 {
+	var messageLength int32
+
+	reader := bytes.NewReader(message[1:5])
+	binary.Read(reader, binary.BigEndian, &messageLength)
+
+	return messageLength
 }
 
 func ErrorResponse(buf []byte) {
@@ -235,96 +354,57 @@ func PasswordMessage(buf []byte) {
 	glog.V(2).Infof("[protocol] PasswordMessage: msglen=%d password hash=%s\n", msgLen, hash)
 }
 
-func md5s(s string) string {
-	h := md5.New()
-	h.Write([]byte(s))
-	return fmt.Sprintf("%x", h.Sum(nil))
-}
-
-func Authenticate(node *config.Node, conn *net.TCPConn) {
-	var readLen, writeLen int
+func Authenticate(connection *net.TCPConn) bool {
+	var readLength, writeLength int
 	var err error
-	var buf []byte
+	var responseMessage []byte
 
-	startupMsg := getStartupMessage(node)
+	// Create the startup message.
+	startupMessage := createStartupMessage()
 
-	//write to backend
-	writeLen, err = conn.Write(startupMsg)
-	if err != nil {
-		glog.Errorln(err.Error() + " at this pt")
-	}
-	glog.V(2).Infof("wrote %d to backend\n", writeLen)
+	// Send the startup message to the backend.
+	writeLength, err = connection.Write(startupMessage)
 
-	//read from backend
-	buf = make([]byte, 2048)
-	readLen, err = conn.Read(buf)
-	if err != nil {
-		glog.Errorln(err.Error() + " at this pt2")
+	if err == nil {
+		glog.V(2).Infoln("[protocol] Startup message successfully sent to the backend.")
+		glog.V(2).Infof("[protocol] %d bytes written to the backend.\n", writeLength)
+	} else {
+		glog.Errorf("[protocol] An error occurred sending the startup message: %s\n", err.Error())
 	}
 
-	//should get back an AuthenticationRequest 'R'
-	LogProtocol("<--", "pool node", buf, len(buf))
-	msgType, msgLen := ProtocolMsgType(buf)
-	if msgType != "R" {
-		glog.Errorln("pool error: should have got R message here")
-	}
-	salt := AuthenticationRequest(buf)
-	glog.V(2).Infof("salt from AuthenticationRequest was %s %x\n", string(salt), salt)
+	// Receive startup reponse from the backend.
+	responseMessage = make([]byte, 2048)
+	readLength, err = connection.Read(responseMessage)
 
-	//create password message and send back to backend
-	pswMsg := getPasswordMessage(salt, config.Cfg.Credentials.Username, config.Cfg.Credentials.Password)
-
-	//write to backend
-	writeLen, err = conn.Write(pswMsg)
-	glog.V(2).Infof("wrote %d to backend\n", writeLen)
-	if err != nil {
-		glog.Errorln(err.Error() + " at this pta")
+	if err == nil {
+		glog.V(2).Infoln("[protocol] Startup response message successfully received from the backend.")
+		glog.V(2).Infof("[protocol] %d bytes received from the backend.\n", readLength)
+	} else {
+		glog.Errorf("[protocol] An error occurred receiving the startup response: %s\n", err.Error())
 	}
 
-	//read from backend
-	readLen, err = conn.Read(buf)
-	if err != nil {
-		glog.Errorln(err.Error() + " at this pt3")
+	/*
+	 * Check the message type.
+	 *
+	 * The first byte of the message is always the message type. The received
+	 * message should be an authentication type which has a value of 'R'.
+	 */
+	if responseMessage[0] != AUTHENTICATION_MESSAGE_TYPE {
+		glog.Errorln("[protocol] Received incorrect message type: should receive a authentication message type (%s).\n",
+			string(AUTHENTICATION_MESSAGE_TYPE))
 	}
 
-	msgType, msgLen = ProtocolMsgType(buf)
-	glog.V(2).Infof("after passwordmsg got msgType %s msgLen=%d\n", msgType, msgLen)
-	if msgType == "R" {
-		LogProtocol("<--", "AuthenticationOK", buf, readLen)
+	// Handle authentication request.
+	authenticated := handleAuthenticationRequest(connection, responseMessage)
+
+	if !authenticated {
+		glog.Errorln("[protocol] Authentication failed.")
 	}
 
+	return authenticated
 }
 
-func getPasswordMessage(salt []byte, username string, password string) []byte {
-	var buffer []byte
-
-	buffer = append(buffer, 'p')
-
-	//make msg len 1 for now
-	x := make([]byte, 4)
-	binary.BigEndian.PutUint32(x, uint32(1))
-	buffer = append(buffer, x...)
-
-	s := string(salt)
-	hashstr := "md5" + md5s(md5s(password+username)+s)
-
-	glog.V(2).Infof("[protocol] getPasswordMessage: hashstr=%s\n", hashstr)
-	buffer = append(buffer, hashstr...)
-
-	//null terminate the string
-	buffer = append(buffer, 0)
-
-	//update the msg len subtracting for msgType byte
-	binary.BigEndian.PutUint32(x, uint32(len(buffer)-1))
-	copy(buffer[1:], x)
-
-	glog.V(2).Infof(" psw msg len=%d\n", len(buffer))
-	glog.V(2).Infof(" psw msg =%s\n", string(buffer))
-	return buffer
-
-}
-
-func getStartupMessage(node *config.Node) []byte {
+func createStartupMessage() []byte {
 
 	//send startup packet
 	var buffer []byte

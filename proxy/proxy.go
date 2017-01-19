@@ -22,16 +22,15 @@ import (
 )
 
 func ListenAndServe() {
-	glog.Infoln("[proxy] ListenAndServe config=" + config.Cfg.Name)
-	glog.Infoln("[proxy] ListenAndServe listening on ipaddr=" + config.Cfg.HostPort)
+	var listener net.Listener
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", config.Cfg.HostPort)
 	checkError(err)
 
-	var listener net.Listener
-
 	listener, err = net.ListenTCP("tcp", tcpAddr)
 	checkError(err)
+
+	glog.Infof("[proxy] Listening on: %s", config.Cfg.HostPort)
 
 	handleListener(listener)
 }
@@ -45,12 +44,18 @@ func handleListener(listener net.Listener) {
 		go handleClient(conn)
 	}
 }
+
 func handleClient(client net.Conn) {
 	glog.V(2).Infoln("[proxy] handleClient start")
 
+	/*
+	 * TODO: handle client connection differently, perhaps refactor so that
+	 * pool connections and client connections follow the same code path.
+	 */
 	err := connect(client)
+
 	if err != nil {
-		glog.Errorln("client could not authenticate and connect")
+		glog.Errorln("[proxy] client could not authenticate and connect")
 		return
 	}
 
@@ -60,7 +65,6 @@ func handleClient(client net.Conn) {
 	var writeLen int
 	var readLen int
 	var msgType string
-	var msgLen int
 	var writeCase, startCase, finishCase = false, false, false
 	var reqLen int
 	var nextNode *config.Node
@@ -76,11 +80,7 @@ func handleClient(client net.Conn) {
 			return
 		}
 
-		msgType, msgLen = ProtocolMsgType(masterBuf)
-		glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, reqLen)
-		LogProtocol("-->", "", masterBuf, reqLen)
-
-		glog.V(3).Infoln("here is a new msgType=" + msgType)
+		msgType = string(masterBuf[0])
 
 		// adapt inbound data
 		err = config.Cfg.Adapter.Do(masterBuf, reqLen)
@@ -93,7 +93,8 @@ func handleClient(client net.Conn) {
 			return
 		} else if msgType == "Q" {
 			poolIndex = -1
-			writeCase, startCase, finishCase = IsWriteAnno(config.Cfg.ReadAnnotation, config.Cfg.StartAnnotation, config.Cfg.FinishAnnotation, masterBuf)
+			writeCase, startCase, finishCase = IsWriteAnno(config.Cfg.ReadAnnotation,
+				config.Cfg.StartAnnotation, config.Cfg.FinishAnnotation, masterBuf)
 			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
 			if statementBlock {
 				glog.V(2).Infof("inside a statementBlock") //keep using the same node and connection
@@ -137,12 +138,14 @@ func handleClient(client net.Conn) {
 			if err != nil {
 				glog.Errorln(err.Error())
 				glog.Errorln("attempting retry of query...")
+
 				//right here is where retry logic occurs
 				//mark as unhealthy the current node
 				config.UpdateHealth(nextNode, false)
 
 				//get next node as usual
 				nextNode, err = config.Cfg.GetNextNode(writeCase)
+
 				if err != nil {
 					glog.Errorln("could not get node for query retry")
 					glog.Errorln(err.Error())
@@ -162,15 +165,16 @@ func handleClient(client net.Conn) {
 
 			writeLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:reqLen])
 			readLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
+
 			if err != nil {
 				glog.Errorln("master WriteRead error:" + err.Error())
 			}
 
-			msgType, msgLen = ProtocolMsgType(masterBuf)
-			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
+			msgType = string(masterBuf[0])
 
 			//write to client only the master response
 			writeLen, err = client.Write(masterBuf[:readLen])
+
 			if err != nil {
 				glog.Errorln("[proxy] closing client conn" + err.Error())
 				return
@@ -196,8 +200,8 @@ func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte)
 	for {
 		readLen, err = backendConn.Read(masterBuf)
 		for startPos := 0; startPos < readLen; {
-			msgType, msgLen = ProtocolMsgType(masterBuf[startPos:])
-			glog.V(2).Infof("read masterBuf type=%s msgLen=%d readLen=%d\n", msgType, msgLen, readLen)
+			msgType = string(masterBuf[0])
+
 			msgLen = msgLen + 1 //add 1 for the message first byte
 			//adapt msgs going back to client
 			err = config.Cfg.Adapter.Do(masterBuf, readLen)
