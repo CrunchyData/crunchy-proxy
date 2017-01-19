@@ -80,7 +80,7 @@ func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 	case AUTHENTICATION_KERBEROS_V5:
 		glog.Fatalln("[protocol] KerberosV5 authentication is not currently supported.")
 	case AUTHENTICATION_CLEAR_TEXT:
-		return handleAuthClearText(connection, message)
+		return handleAuthClearText(connection)
 	case AUTHENTICATION_MD5:
 		return handleAuthMD5(connection, message)
 	case AUTHENTICATION_SCM:
@@ -98,9 +98,37 @@ func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 	return false
 }
 
-func handleAuthClearText(conn *net.TCPConn, buf []byte) bool {
-	//return []byte{buf[9], buf[10], buf[11], buf[12]}
-	return true
+func handleAuthClearText(connection *net.TCPConn) bool {
+	var writeLength, readLength int
+	var response []byte
+	var err error
+
+	// Create the password message.
+	passwordMessage := createPasswordMessage(config.Cfg.Credentials.Password)
+
+	// Send the password message to the backend.
+	writeLength, err = connection.Write(passwordMessage)
+
+	// Check that write was successful.
+	if err != nil {
+		glog.Errorln("[protocol] Error sending password message to the backend.")
+		glog.Errorf("[protocol] %s", err.Error())
+	}
+
+	glog.V(2).Infof("[protocol] %d bytes sent to the backend.\n", writeLength)
+
+	// Read response from password message.
+	readLength, err = connection.Read(response)
+
+	// Check that read was successful.
+	if err != nil {
+		glog.Errorln("[protocol] Error receiving authentication response from the backend.")
+		glog.Errorf("[protocol] %s\n", err.Error())
+	}
+
+	glog.V(2).Infof("[protocol] %d bytes received from the backend.\n", readLength)
+
+	return isAuthenticationOk(response)
 }
 
 func createMD5Password(username string, password string, salt string) string {
@@ -115,12 +143,10 @@ func createMD5Password(username string, password string, salt string) string {
 	return fmt.Sprintf("md5%x", md5.Sum([]byte(passwordString)))
 }
 
-func createMD5PasswordMessage(username string, password string, salt string) []byte {
+func createPasswordMessage(password string) []byte {
 	var message []byte
 
 	// Create an MD5 password value.
-	md5Password := createMD5Password(username, password, salt)
-
 	// Set the message type.
 	message = append(message, PASSWORD_MESSAGE_TYPE)
 
@@ -130,7 +156,7 @@ func createMD5PasswordMessage(username string, password string, salt string) []b
 	message = append(message, messageLength...)
 
 	// Append the MD5 password to the message.
-	message = append(message, md5Password...)
+	message = append(message, password...)
 
 	// null terminate the message.
 	message = append(message, 0)
@@ -154,8 +180,10 @@ func handleAuthMD5(connection *net.TCPConn, message []byte) bool {
 	password := config.Cfg.Credentials.Password
 	salt := string(message[9:13])
 
+	password = createMD5Password(username, password, salt)
+
 	// Create the password message.
-	passwordMessage := createMD5PasswordMessage(username, password, salt)
+	passwordMessage := createPasswordMessage(password)
 
 	// Send the password message to the backend.
 	writeLength, err = connection.Write(passwordMessage)
