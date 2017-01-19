@@ -235,26 +235,6 @@ func PasswordMessage(buf []byte) {
 	glog.V(2).Infof("[protocol] PasswordMessage: msglen=%d password hash=%s\n", msgLen, hash)
 }
 
-func PasswordMessageFake(buf []byte, salt []byte, username string, password string) {
-	var msgLen int32
-
-	reader := bytes.NewReader(buf[1:5])
-	binary.Read(reader, binary.BigEndian, &msgLen)
-
-	var hash = string(buf[5:msgLen])
-
-	glog.V(2).Infof("[protocol] PasswordMessageFake: username=%s password=%s\n", username, password)
-	glog.V(2).Infof("[protocol] PasswordMessageFake: msglen=%d password hash=%s salt=%x saltlen=%d\n", msgLen, hash, salt, len(salt))
-
-	s := string(salt)
-	hashstr := "md5" + md5s(md5s(password+username)+s)
-
-	glog.V(2).Infof("[protocol] PasswordMessageFake: hashstr=%s\n", hashstr)
-	hashbytes := []byte(hashstr)
-	copy(buf[5:], hashbytes)
-	glog.V(2).Infoln("generated hash " + hashstr)
-}
-
 func md5s(s string) string {
 	h := md5.New()
 	h.Write([]byte(s))
