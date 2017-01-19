@@ -40,6 +40,7 @@ func main() {
 	}()
 
 	go admin.StartHealthcheck()
+
 	config.Cfg.SetupAdapters()
 	config.Cfg.PrintNodeInfo()
 

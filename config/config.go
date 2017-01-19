@@ -100,13 +100,13 @@ func (c Config) Print() {
 
 func (c Config) PrintNodeInfo() {
 	// Print the master node information.
-	glog.Infoln("----Master Node Information ----")
-	glog.Infof("master host = %s\n", c.Master.HostPort)
+	glog.Infoln("[config] ---- Master Node Information ----")
+	glog.Infof("[config] master host = %s\n", c.Master.HostPort)
 
 	// Print the replica node information.
-	glog.Infoln("----Replica Node Information ----")
+	glog.Infoln("[config] ---- Replica Node Information ----")
 	for i, replica := range c.Replicas {
-		glog.Infof("replica %d host = %s\n", i, replica.HostPort)
+		glog.Infof("[config] replica %d host = %s\n", i, replica.HostPort)
 	}
 }
 
@@ -205,13 +205,7 @@ func ReadConfig() {
 
 }
 
-func (n *Node) GetConnection() (*net.TCPConn, error) {
-	conn, err := net.DialTCP("tcp", nil, n.TCPAddr)
-	return conn, err
-}
-
 func (c *Config) GetAllConnections() {
-
 	var err error
 	glog.V(2).Infoln("dialing " + c.Master.HostPort)
 	c.Master.TCPConn, err = net.DialTCP("tcp", nil, c.Master.TCPAddr)
