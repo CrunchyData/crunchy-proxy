@@ -16,6 +16,8 @@
 package proxy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/golang/glog"
 	"net"
@@ -93,26 +95,34 @@ func handleClient(client net.Conn) {
 			return
 		} else if msgType == "Q" {
 			poolIndex = -1
+
+			// Determine if the query has an annotation.
 			writeCase, startCase, finishCase = IsWriteAnno(config.Cfg.ReadAnnotation,
 				config.Cfg.StartAnnotation, config.Cfg.FinishAnnotation, masterBuf)
+
 			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
+
 			if statementBlock {
-				glog.V(2).Infof("inside a statementBlock") //keep using the same node and connection
+				glog.V(2).Infof("[proxy] inside a statementBlock") // keep using the same node and connection
 			} else {
 				if startCase {
 					statementBlock = true
 				}
+
 				nextNode, err = config.Cfg.GetNextNode(writeCase)
+
 				if err != nil {
 					glog.Errorln(err.Error())
 					return
 				}
+
 				//get pool index from pool channel
 				poolIndex = <-nextNode.Pool.Channel
 
 				glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.HostPort, poolIndex)
 				backendConn = nextNode.Pool.Connections[poolIndex]
 			}
+
 			if finishCase {
 				statementBlock = false
 				glog.V(2).Infof("outside a statementBlock")
@@ -192,6 +202,18 @@ func checkError(err error) {
 	}
 }
 
+func getMessageTypeAndLength(buf []byte) (string, int) {
+	var msgLen int32
+
+	// Read the message length.
+	reader := bytes.NewReader(buf[1:5])
+	binary.Read(reader, binary.BigEndian, &msgLen)
+
+	glog.V(2).Infof("[protocol] %d msgLen\n", msgLen)
+
+	return string(buf[0]), int(msgLen)
+}
+
 func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
 	var writeLen, msgLen, readLen int
 	var msgType string
@@ -199,19 +221,25 @@ func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte)
 
 	for {
 		readLen, err = backendConn.Read(masterBuf)
-		for startPos := 0; startPos < readLen; {
-			msgType = string(masterBuf[0])
 
-			msgLen = msgLen + 1 //add 1 for the message first byte
+		for startPos := 0; startPos < readLen; {
+			msgType, msgLen = getMessageTypeAndLength(masterBuf[startPos:])
+
+			msgLen = msgLen + 1 // add 1 for the message first byte
+
 			//adapt msgs going back to client
 			err = config.Cfg.Adapter.Do(masterBuf, readLen)
+
 			if err != nil {
 				glog.Errorln("[proxy] error adapting outbound" + err.Error())
 			}
 
 			writeLen, err = client.Write(masterBuf[startPos : msgLen+startPos])
+
 			glog.V(3).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
+
 			startPos = startPos + msgLen
+
 			glog.V(3).Infof("[proxy] startPos is now %d\n", startPos)
 		}
 		if msgType == "Z" {

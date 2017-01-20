@@ -26,7 +26,7 @@ func connect(client net.Conn) error {
 	glog.V(2).Infoln("[proxy] connect start")
 
 	config.Cfg.GetAllConnections()
-	glog.V(2).Infoln("replicas cnt=%d\n", len(config.Cfg.Replicas))
+	glog.V(2).Infof("[proxy] replica count = %d\n", len(config.Cfg.Replicas))
 
 	masterBuf := make([]byte, 4096)
 	var masterReadLen int
@@ -42,11 +42,12 @@ func connect(client net.Conn) error {
 		return err
 	}
 
-	thelen := binary.BigEndian.Uint32(masterBuf[:4])
-	theprotocol := binary.BigEndian.Uint32(masterBuf[4:8])
+	messageLen := binary.BigEndian.Uint32(masterBuf[:4])
+	protocolVersion := binary.BigEndian.Uint32(masterBuf[4:8])
 
-	glog.V(2).Infoln("the len=%d the protocol=%d\n", thelen, theprotocol)
-	glog.V(2).Infoln("the msg=[%s] \n", string(masterBuf[8:]))
+	glog.V(2).Infof("[proxy] message length = %d\n", messageLen)
+	glog.V(2).Infof("[proxy] protocol version = %d\n", protocolVersion)
+	glog.V(2).Infof("[proxy] message = [%s]\n", string(masterBuf[8:]))
 
 	masterReadLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:clientLen])
 	masterReadLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
@@ -84,14 +85,15 @@ func connect(client net.Conn) error {
 			glog.Errorln("master WriteRead error:" + err.Error())
 		}
 
-		glog.V(2).Infoln("read from master after N msgType=" + msgType)
+		glog.V(2).Infoln("[proxy] read from master after N msgType=" + msgType)
 
 	}
 
 	// send R authentication request to client
-	glog.V(2).Infoln("sending msgType to client: %s msgLen=%d\n",
-		msgType, msgLen)
-	glog.V(2).Infoln("should be R Auth msg here send R auth to client")
+	msgType = "R"
+
+	glog.V(2).Infof("[proxy] sending msgType to client: %s msgLen=%d\n", msgType, msgLen)
+	glog.V(2).Infoln("[proxy] should be R Auth msg here send R auth to client")
 
 	_, err = client.Write(masterBuf[:masterReadLen])
 
