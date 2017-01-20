@@ -64,6 +64,12 @@ func NullTermToStrings(b []byte) (s []string) {
 	return
 }
 
+/*
+ * Handle authentication requests that are sent by the backend to the client.
+ *
+ * connection - the connection to authenticate against.
+ * message - the authentication message sent by the backend.
+ */
 func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 	var msgLength int32
 	var authType int32
@@ -80,11 +86,13 @@ func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 	case AUTHENTICATION_KERBEROS_V5:
 		glog.Fatalln("[protocol] KerberosV5 authentication is not currently supported.")
 	case AUTHENTICATION_CLEAR_TEXT:
+		glog.V(2).Infoln("[protocol] Authenticating with clear text password.")
 		return handleAuthClearText(connection)
 	case AUTHENTICATION_MD5:
+		glog.V(2).Infoln("[protocol] Authenticating with MD5 password.")
 		return handleAuthMD5(connection, message)
 	case AUTHENTICATION_SCM:
-		glog.Fatalln("[protocol] SCM authenication is not currently supported.")
+		glog.Fatalln("[protocol] SCM authentication is not currently supported.")
 	case AUTHENTICATION_GSS:
 		glog.Fatalln("[protocol] GSS authentication is not currently supported.")
 	case AUTHENTICATION_GSS_CONTINUTE:
@@ -98,6 +106,12 @@ func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 	return false
 }
 
+/*
+ * Handle authentication with a clear text password. If the authentication is
+ * successful, then return true otherwise false.
+ *
+ * connection - the connection to authenticate against.
+ */
 func handleAuthClearText(connection *net.TCPConn) bool {
 	var writeLength, readLength int
 	var response []byte
@@ -131,6 +145,14 @@ func handleAuthClearText(connection *net.TCPConn) bool {
 	return isAuthenticationOk(response)
 }
 
+/*
+ * Create a MD5 password.  The password is created using the following format:
+ * md5(md5(password+username)+salt)
+ *
+ * username - the username of the authenticating user.
+ * password - the password of the authenticating user.
+ * salt - the random salt used in creation of the MD5 password.
+ */
 func createMD5Password(username string, password string, salt string) string {
 	// Concatenate the password and the username together.
 	passwordString := fmt.Sprintf("%s%s", password, username)
@@ -143,6 +165,11 @@ func createMD5Password(username string, password string, salt string) string {
 	return fmt.Sprintf("md5%x", md5.Sum([]byte(passwordString)))
 }
 
+/*
+ * Create a PG password message.
+ *
+ * password - the password to include in the payload of the message.
+ */
 func createPasswordMessage(password string) []byte {
 	var message []byte
 
@@ -171,6 +198,12 @@ func createPasswordMessage(password string) []byte {
 	return message
 }
 
+/*
+ * Handle authentication with a MD5 password. If the authentication is
+ * successful, then return true otherwise false.
+ *
+ * connection - the connection to authenticate against.
+ */
 func handleAuthMD5(connection *net.TCPConn, message []byte) bool {
 	var writeLength, readLength int
 	var err error
@@ -247,10 +280,20 @@ func isAuthenticationOk(message []byte) bool {
 	return authenticated
 }
 
+/*
+ * Get the message type the provided message.
+ *
+ * message - the message
+ */
 func getMessageType(message []byte) byte {
 	return message[0]
 }
 
+/*
+ * Get the message length of the provided message.
+ *
+ * message - the message
+ */
 func getMessageLength(message []byte) int32 {
 	var messageLength int32
 
@@ -371,17 +414,11 @@ func GetTerminateMessage() []byte {
 	return buffer
 }
 
-func PasswordMessage(buf []byte) {
-	var msgLen int32
-
-	reader := bytes.NewReader(buf[1:5])
-	binary.Read(reader, binary.BigEndian, &msgLen)
-
-	var hash = string(buf[5:msgLen])
-
-	glog.V(2).Infof("[protocol] PasswordMessage: msglen=%d password hash=%s\n", msgLen, hash)
-}
-
+/*
+ * Authenticate a connection.
+ *
+ * connection - the connection to authenticate against.
+ */
 func Authenticate(connection *net.TCPConn) bool {
 	var readLength, writeLength int
 	var err error
@@ -432,6 +469,10 @@ func Authenticate(connection *net.TCPConn) bool {
 	return authenticated
 }
 
+/*
+ * Create a PG startup message. This message is used to startup all connections
+ * with a PG backend.
+ */
 func createStartupMessage() []byte {
 
 	//send startup packet
@@ -439,7 +480,7 @@ func createStartupMessage() []byte {
 
 	x := make([]byte, 4)
 
-	//make msg len 1 for now
+	// Temporarily set the message length to 0.
 	binary.BigEndian.PutUint32(x, uint32(1))
 	buffer = append(buffer, x...)
 
@@ -460,12 +501,10 @@ func createStartupMessage() []byte {
 	 */
 	key = "user"
 	buffer = append(buffer, key...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	value = config.Cfg.Credentials.Username
 	buffer = append(buffer, value...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	/*
@@ -477,11 +516,10 @@ func createStartupMessage() []byte {
 	 */
 	key = "database"
 	buffer = append(buffer, key...)
-	//null terminate the string
 	buffer = append(buffer, 0)
+
 	value = config.Cfg.Credentials.Database
 	buffer = append(buffer, value...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	/*
@@ -491,12 +529,10 @@ func createStartupMessage() []byte {
 	 */
 	key = "client_encoding"
 	buffer = append(buffer, key...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	value = "UTF8"
 	buffer = append(buffer, value...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	/*
@@ -504,12 +540,10 @@ func createStartupMessage() []byte {
 	 */
 	key = "datestyle"
 	buffer = append(buffer, key...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	value = "ISO, MDY"
 	buffer = append(buffer, value...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	/*
@@ -517,12 +551,10 @@ func createStartupMessage() []byte {
 	 */
 	key = "application_name"
 	buffer = append(buffer, key...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	value = "proxypool"
 	buffer = append(buffer, value...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	/*
@@ -532,12 +564,10 @@ func createStartupMessage() []byte {
 	 */
 	key = "extra_float_digits"
 	buffer = append(buffer, key...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	value = "2"
 	buffer = append(buffer, value...)
-	//null terminate the string
 	buffer = append(buffer, 0)
 
 	// TODO: Determine if this last null byte is necessary.
