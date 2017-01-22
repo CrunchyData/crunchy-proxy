@@ -104,7 +104,11 @@ func healthcheckQuery(cred config.PGCredentials, query string, node config.Node)
 	var database = cred.Database
 
 	conn, err = getDBConnection(dbHost, dbUser, dbPort, database, dbPassword)
-	defer conn.Close()
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	}()
 
 	if err != nil {
 		glog.Errorln("[hc] healthcheck failed: error: " + err.Error())
@@ -112,7 +116,11 @@ func healthcheckQuery(cred config.PGCredentials, query string, node config.Node)
 	}
 
 	rows, err = conn.Query(query)
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			rows.Close()
+		}
+	}()
 
 	if err != nil {
 		glog.Errorln("[hc] failed: error: " + err.Error())
