@@ -246,38 +246,26 @@ func handleAuthMD5(connection *net.TCPConn, message []byte) bool {
 /*
  * Check an Authentication Message to determine if it is an AuthenticationOK
  * message.
- *
- * It is assumed that the message passed in has already been verified to be an
- * Authentication Message.
  */
 func isAuthenticationOk(message []byte) bool {
-	var authenticated bool = false
-
 	/*
-	 * Determine the response message type and process accordingly. The only
-	 * valid message types allowed here are Authentication and Error.
+	 * If the message type is not an Authentication message, then short circuit
+	 * and return false.
 	 */
-	messageType := getMessageType(message)
-
-	if messageType == AUTHENTICATION_MESSAGE_TYPE {
-		var messageValue int32
-
-		// Get the message length.
-		messageLength := getMessageLength(message)
-
-		// Get the message value.
-		reader := bytes.NewReader(message[5:9])
-		binary.Read(reader, binary.BigEndian, &messageValue)
-
-		return (messageLength == 8 && messageValue == 0)
-	} else if messageType == ERROR_MESSAGE_TYPE {
-		// TODO: handle error message appropriately.
-	} else {
-		// TODO: handle any other kind of message. This is techincally an error
-		// state as well, however, not explicitly one from the backend.
+	if getMessageType(message) != AUTHENTICATION_MESSAGE_TYPE {
+		return false
 	}
 
-	return authenticated
+	var messageValue int32
+
+	// Get the message length.
+	messageLength := getMessageLength(message)
+
+	// Get the message value.
+	reader := bytes.NewReader(message[5:9])
+	binary.Read(reader, binary.BigEndian, &messageValue)
+
+	return (messageLength == 8 && messageValue == 0)
 }
 
 /*
