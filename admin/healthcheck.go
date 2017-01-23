@@ -64,6 +64,11 @@ func StartHealthcheck() {
 		}
 
 		mutex.Lock()
+
+		if !config.Cfg.Master.Healthy && result == true {
+			glog.V(2).Info("[hc] Master going healthy after being down")
+			glog.V(2).Info("[hc] Rebuilding connection pool for master")
+		}
 		config.Cfg.Master.Healthy = result
 		mutex.Unlock()
 
@@ -82,6 +87,10 @@ func StartHealthcheck() {
 			}
 
 			mutex.Lock()
+			if !config.Cfg.Replicas[i].Healthy && result == true {
+				glog.V(2).Info("[hc] Replica going healthy after being down")
+				glog.V(2).Info("[hc] Rebuilding connection pool for replica")
+			}
 			config.Cfg.Replicas[i].Healthy = result
 			mutex.Unlock()
 		}

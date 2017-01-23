@@ -25,13 +25,6 @@ func ReturnConnection(ch chan int, connIndex int) {
 }
 
 func SetupPools() {
-	if !config.Cfg.Pool.Enabled {
-		glog.Errorln("[pool] pooling not enabled")
-		return
-	}
-
-	glog.V(2).Infoln("[pool] pooling enabled")
-
 	for i := 0; i < len(config.Cfg.Replicas); i++ {
 		setupPoolForNode(&config.Cfg.Replicas[i])
 	}

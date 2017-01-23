@@ -45,8 +45,7 @@ type NodePool struct {
 }
 
 type PoolConfig struct {
-	Enabled  bool `json:"enabled"`
-	Capacity int  `json:"capacity"`
+	Capacity int `json:"capacity"`
 }
 
 type PGCredentials struct {
@@ -113,7 +112,6 @@ func (c Config) PrintNodeInfo() {
 func PrintExample() {
 	ds := []string{"logging", "audit"}
 	var pool = PoolConfig{
-		Enabled:  true,
 		Capacity: 2}
 	cred := PGCredentials{
 		Username: "logging",

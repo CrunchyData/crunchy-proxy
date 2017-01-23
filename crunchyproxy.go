@@ -46,9 +46,7 @@ func main() {
 
 	go admin.Initialize()
 
-	if config.Cfg.Pool.Enabled {
-		proxy.SetupPools()
-	}
+	proxy.SetupPools()
 
 	proxy.ListenAndServe()
 
