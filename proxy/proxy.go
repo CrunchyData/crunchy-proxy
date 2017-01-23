@@ -39,17 +39,18 @@ func ListenAndServe() {
 
 func handleListener(listener net.Listener) {
 	for {
+
 		conn, err := listener.Accept()
+
 		if err != nil {
 			continue
 		}
+
 		go handleClientConnection(conn)
 	}
 }
 
 func handleClientConnection(client net.Conn) {
-	glog.V(2).Infoln("[proxy] handleClient start")
-
 	authenticated := AuthenticateClient(client)
 
 	// If the client could not authenticate then go no further.
@@ -173,6 +174,8 @@ func handleClientConnection(client net.Conn) {
 		} else {
 
 			glog.V(2).Infoln("XXXX msgType here is " + msgType)
+
+			config.Cfg.GetAllConnections()
 
 			writeLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:reqLen])
 			readLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
