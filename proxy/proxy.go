@@ -43,26 +43,24 @@ func handleListener(listener net.Listener) {
 		if err != nil {
 			continue
 		}
-		go handleClient(conn)
+		go handleClientConnection(conn)
 	}
 }
 
-func handleClient(client net.Conn) {
+func handleClientConnection(client net.Conn) {
 	glog.V(2).Infoln("[proxy] handleClient start")
 
-	/*
-	 * TODO: handle client connection differently, perhaps refactor so that
-	 * pool connections and client connections follow the same code path.
-	 */
-	err := connect(client)
+	authenticated := AuthenticateClient(client)
 
-	if err != nil {
-		glog.Errorln("[proxy] client could not authenticate and connect")
+	// If the client could not authenticate then go no further.
+	if !authenticated {
+		glog.Errorln("[proxy] client could not authenticate and connect.")
 		return
 	}
 
 	defer client.Close()
 
+	var err error
 	masterBuf := make([]byte, 4096)
 	var writeLen int
 	var readLen int
