@@ -130,43 +130,46 @@ func handleClient(client net.Conn) {
 
 			nextNode.Stats.Queries = nextNode.Stats.Queries + 1
 
-			writeLen, err = backendConn.Write(masterBuf[:reqLen])
-			glog.V(2).Infof("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)
-			if err != nil {
-				glog.Errorln(err.Error())
-				glog.Errorln("[proxy] error here")
+			var clientErr error
+			clientErr, err = processBackend(client, backendConn, masterBuf, reqLen)
+			if clientErr != nil {
+				glog.Errorln(clientErr.Error())
+				glog.Errorln("[proxy] client write error..giving up on statement")
+				return
 			}
 
-			//write the query to backend then read and write
-			//till we get Q from the backend
-			err = processBackend(client, backendConn, masterBuf)
+			if err != nil {
+				glog.Errorln(err.Error())
+				glog.Errorln("[proxy] backend write error..retrying...")
+				//retry logic
+				//mark node as unhealthy
+				config.UpdateHealth(nextNode, false)
+				//return connection index to pool
+				ReturnConnection(nextNode.Pool.Channel, poolIndex)
+				//get new connection on master
+				nextNode, err = config.Cfg.GetNextNode(true)
+				poolIndex = <-nextNode.Pool.Channel
+				backendConn = nextNode.Pool.Connections[poolIndex]
+				clientErr, err = processBackend(client, backendConn, masterBuf, reqLen)
+				if clientErr != nil {
+					glog.Errorln(clientErr.Error())
+					glog.Errorln("[proxy] client write erroron retry..giving up on statement")
+					return
+				}
+				if err != nil {
+					glog.Errorln("retry of query also failed, giving up on this statement...")
+					ReturnConnection(nextNode.Pool.Channel, poolIndex)
+					config.UpdateHealth(nextNode, false)
+					writeLen, err = client.Write(GetTerminateMessage())
+					if err != nil {
+						glog.Errorln(err.Error())
+					}
+					return
+				}
+			}
 
 			if poolIndex != -1 {
 				ReturnConnection(nextNode.Pool.Channel, poolIndex)
-			}
-
-			if err != nil {
-				glog.Errorln(err.Error())
-				glog.Errorln("attempting retry of query...")
-
-				//right here is where retry logic occurs
-				//mark as unhealthy the current node
-				config.UpdateHealth(nextNode, false)
-
-				//get next node as usual
-				nextNode, err = config.Cfg.GetNextNode(writeCase)
-
-				if err != nil {
-					glog.Errorln("could not get node for query retry")
-					glog.Errorln(err.Error())
-				} else {
-					writeLen, err = nextNode.Pool.Connections[0].Write(masterBuf[:reqLen])
-					readLen, err = nextNode.Pool.Connections[0].Read(masterBuf)
-					if err != nil {
-						glog.Errorln("query retry failed")
-						glog.Errorln(err.Error())
-					}
-				}
 			}
 
 		} else {
@@ -214,13 +217,26 @@ func getMessageTypeAndLength(buf []byte) (string, int) {
 	return string(buf[0]), int(msgLen)
 }
 
-func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte) error {
+func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte, reqLen int) (error, error) {
 	var writeLen, msgLen, readLen int
 	var msgType string
 	var err error
+	var clienterr error
+
+	writeLen, err = backendConn.Write(masterBuf[:reqLen])
+	glog.V(2).Infof("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)
+	if err != nil {
+		glog.Errorln("[proxy] error writing to backend " + err.Error())
+		return clienterr, err
+	}
 
 	for {
 		readLen, err = backendConn.Read(masterBuf)
+		if err != nil {
+			glog.Errorln("[proxy] error reading from backend " + err.Error())
+			return clienterr, err
+		}
+		glog.V(6).Infof("read from backend..%d\n", readLen)
 
 		for startPos := 0; startPos < readLen; {
 			msgType, msgLen = getMessageTypeAndLength(masterBuf[startPos:])
@@ -234,7 +250,11 @@ func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte)
 				glog.Errorln("[proxy] error adapting outbound" + err.Error())
 			}
 
-			writeLen, err = client.Write(masterBuf[startPos : msgLen+startPos])
+			writeLen, clienterr = client.Write(masterBuf[startPos : msgLen+startPos])
+			if clienterr != nil {
+				glog.Errorln("[proxy] error writing to client " + err.Error())
+				return clienterr, err
+			}
 
 			glog.V(3).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
 
@@ -244,9 +264,9 @@ func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte)
 		}
 		if msgType == "Z" {
 			glog.V(2).Infof("[proxy] Z msg found")
-			return err
+			return clienterr, err
 		}
 	}
 
-	return err
+	return clienterr, err
 }
