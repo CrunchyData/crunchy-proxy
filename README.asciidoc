@@ -76,6 +76,12 @@ The proxy is a golang binary, you execute it as follows:
 crunchyproxy -config=config.json
 ....
 
+To run the proxy with logging enabled and highly verbose output:
+....
+crunchyproxy -config=config.json -logtostderr=true -v 5
+....
+
+
 Detailed documentation including configuration file format and 
 developer information is 
 found in the link:docs/crunchy-proxy-user-guide.asciidoc[User Guide] 

@@ -86,7 +86,7 @@ execution starts.</p></div>
 </thead>
 <tfoot>
 <tr>
-<td>Replicas.IPAddr</td>
+<td>Replicas.HostPort</td>
 <td>the replica backend hostname:port</td>
 <td>"127.0.0.1:12002"</td>
 </tr>
@@ -98,12 +98,12 @@ execution starts.</p></div>
 <td>"myconfig"</td>
 </tr>
 <tr>
-<td>IPAddr</td>
+<td>HostPort</td>
 <td>the proxy host:port to listen to</td>
 <td>"localhost:5432"</td>
 </tr>
 <tr>
-<td>AdminIPAddr</td>
+<td>AdminHostPort</td>
 <td>the proxy admin host:port</td>
 <td>"localhost:10000"</td>
 </tr>
@@ -163,7 +163,7 @@ execution starts.</p></div>
 <td>"logging"</td>
 </tr>
 <tr>
-<td>Master.IPAddr</td>
+<td>Master.HostPort</td>
 <td>the master backend hostname:port</td>
 <td>"127.0.0.1:12000"</td>
 </tr>
@@ -176,7 +176,8 @@ execution starts.</p></div>
 a single master and replica.  Run the database script as follows:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
-<pre>bin/run-cluster.sh</pre>
+<pre>export CCP_IMAGE_TAG=centos7-9.5-1.2.6
+bin/run-cluster.sh</pre>
 </div></div>
 <div class="paragraph"><p>This will start two docker containers that execute the PostgreSQL cluster.</p></div>
 <div class="paragraph"><p>The Postgres 9.5 master container listens on <strong>localhost:12000</strong> and
@@ -299,7 +300,8 @@ steps to build <strong>crunchy-proxy</strong> from source:</p></div>
 <div class="literalblock">
 <div class="content monospaced">
 <pre>mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
-export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN</pre>
+export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN
+export BUILDBASE=$GOPATH/github.com/crunchydata/crunchy-proxy</pre>
 </div></div>
 <div class="paragraph"><p>First, install a golang compiler. As an example, on centos7:</p></div>
 <div class="literalblock">
@@ -463,7 +465,7 @@ REST API.</p></div>
 </div>
 <div class="section">
     <h1 class="page-header" id="legal_notices">8. Legal Notices</h1>
-<div class="paragraph"><p>Copyright © 2016 Crunchy Data Solutions, Inc.</p></div>
+<div class="paragraph"><p>Copyright © 2017 Crunchy Data Solutions, Inc.</p></div>
 <div class="paragraph"><p>CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</p></div>
 <div class="paragraph"><p>Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks of Crunchy Data Solutions, Inc.</p></div>
 </div>
@@ -489,8 +491,6 @@ REST API.</p></div>
         <table>
         <tr>
         <td><b>Crunchy Data Solutions, Inc.</b></td>
-        <td>v1.0.3</td>
-        <td>February 27, 2016</td>
         </tr>
         </table>
         </div>
