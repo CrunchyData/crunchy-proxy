@@ -5,7 +5,7 @@ CCP_IMAGE_TAG=centos7-9.5-1.2.6
 
 echo "starting master container..."
 
-DATA_DIR=/tmp/master-data
+DATA_DIR=$HOME/master-data
 sudo rm -rf $DATA_DIR
 sudo mkdir -p $DATA_DIR
 sudo chmod 777 $DATA_DIR
@@ -38,7 +38,7 @@ echo "sleeping a bit before starting replica..."
 sleep 10
 echo "starting replica container..."
 
-DATA_DIR=/tmp/replica-data
+DATA_DIR=$HOME/replica-data
 sudo rm -rf $DATA_DIR
 sudo mkdir -p $DATA_DIR
 sudo chown postgres:postgres $DATA_DIR
