@@ -26,10 +26,10 @@ func ReturnConnection(ch chan int, connIndex int) {
 
 func SetupPools() {
 	for i := 0; i < len(config.Cfg.Replicas); i++ {
-		setupPoolForNode(&config.Cfg.Replicas[i])
+		SetupPoolForNode(&config.Cfg.Replicas[i])
 	}
 
-	setupPoolForNode(&config.Cfg.Master)
+	SetupPoolForNode(&config.Cfg.Master)
 }
 
 func connectPool(hostPort string) (*net.TCPConn, error) {
@@ -44,7 +44,7 @@ func connectPool(hostPort string) (*net.TCPConn, error) {
 	return connection, err
 }
 
-func setupPoolForNode(node *config.Node) {
+func SetupPoolForNode(node *config.Node) {
 	var connection *net.TCPConn
 	var err error
 
