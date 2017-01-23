@@ -39,14 +39,14 @@ func main() {
 		os.Exit(0)
 	}()
 
+	proxy.SetupPools()
+
 	go admin.StartHealthcheck()
 
 	config.Cfg.SetupAdapters()
 	config.Cfg.PrintNodeInfo()
 
 	go admin.Initialize()
-
-	proxy.SetupPools()
 
 	proxy.ListenAndServe()
 

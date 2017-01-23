@@ -37,8 +37,10 @@ func connectPool(hostPort string) (*net.TCPConn, error) {
 	var connection *net.TCPConn
 	var err error
 
-	// TODO: Add some error checking here for each of these statements.
 	address, err = net.ResolveTCPAddr("tcp4", hostPort)
+	if err != nil {
+		return connection, err
+	}
 	connection, err = net.DialTCP("tcp", nil, address)
 
 	return connection, err
@@ -64,7 +66,9 @@ func SetupPoolForNode(node *config.Node) {
 		connection, err = connectPool(node.HostPort)
 
 		if err != nil {
-			glog.Errorf("[pool] Error creating connection for node: %s\n", err.Error())
+			glog.Errorf("[pool] Error creating connection for node: %s...setting node to unhealthy \n", err.Error())
+			node.Healthy = false
+			return
 		}
 
 		// Authenticate the new pool connection.
@@ -77,7 +81,8 @@ func SetupPoolForNode(node *config.Node) {
 			node.Pool.Connections[j] = connection
 			node.Pool.Channel <- j
 		} else {
-			glog.Errorln("[pool] Error occurred authenticating.")
+			glog.Errorln("[pool] Error occurred authenticating..setting node to unhealthy")
+			node.Healthy = false
 		}
 
 	}
