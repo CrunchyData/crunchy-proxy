@@ -18,9 +18,16 @@ package proxy
 import (
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/golang/glog"
+	"io"
 	"net"
 )
 
+/*
+ * Send a message.
+ *
+ * connection - the connection to which to send the message.
+ * message - the message to send.
+ */
 func send(connection net.Conn, message []byte) {
 	_, err := connection.Write(message)
 
@@ -30,7 +37,12 @@ func send(connection net.Conn, message []byte) {
 	}
 }
 
-func receive(connection net.Conn) ([]byte, int) {
+/*
+ * Receive a message. Returns the message and the number of bytes received.
+ *
+ * connection - the connection from which to receive the message.
+ */
+func receive(connection net.Conn) ([]byte, int, error) {
 	buffer := make([]byte, 4096)
 	length, err := connection.Read(buffer)
 
@@ -39,9 +51,7 @@ func receive(connection net.Conn) ([]byte, int) {
 		glog.Errorf("[proxy] %s\n", err.Error())
 	}
 
-	glog.Infof("[proxy] Received %d bytes.", length)
-
-	return buffer, length
+	return buffer, length, err
 }
 
 /*
@@ -55,18 +65,19 @@ func receive(connection net.Conn) ([]byte, int) {
  */
 func AuthenticateClient(client net.Conn) bool {
 	glog.Infoln("[proxy] Start client connection.")
+	var err error
 
 	/* Establish a connection with the master node. */
 	master, _ := net.DialTCP("tcp", nil, config.Cfg.Master.TCPAddr)
 
 	/* Receive the startup message from client. */
-	message, length := receive(client)
+	message, length, _ := receive(client)
 
 	/* Realy the startup message to master node. */
 	send(master, message[:length])
 
 	/* Receive startup response. */
-	message, length = receive(master)
+	message, length, _ = receive(master)
 
 	/*
 	 * While the response for the master node is not an AuthenticationOK or
@@ -75,20 +86,40 @@ func AuthenticateClient(client net.Conn) bool {
 	messageType := getMessageType(message)
 	for !isAuthenticationOk(message) && (messageType != ERROR_MESSAGE_TYPE) {
 		send(client, message[:length])
-		message, length = receive(client)
+		message, length, err = receive(client)
+
+		/*
+		 * Must check that the client has not closed the connection.  This in
+		 * particular is specific to 'psql' when it prompts for a password.
+		 * Apparently, when psql prompts the user for a password it closes the
+		 * original connection, and then creates a new one. Eventually the
+		 * following send/receives would timeout and no 'meaningful' messages
+		 * are relayed. This would ultimately cause an infinite loop.  Thus it
+		 * is better to short circuit here if the client connection has been
+		 * closed.
+		 */
+		if (err != nil) && (err == io.EOF) {
+			glog.Infoln("The client closed the connection.")
+			glog.Infoln("If the client is 'psql' and the authentication method " +
+				"was 'password', then this behavior is expected.")
+			return false
+		}
+
 		send(master, message[:length])
-		message, length = receive(master)
+		message, length, _ = receive(master)
+
 		send(client, message[:length])
 		messageType = getMessageType(message)
 	}
 
 	/*
 	 * If the last response from the master node was AuthenticationOK, then
-	 * terminate the connection and return 'true'.
+	 * terminate the connection and return 'true' for a successful
+	 * authentication of the client.
 	 *
 	 * If the last response from the master is NOT AuthenticationOK, it is safe
 	 * to assume that it was an ErrorResponse as all over message types are
-	 * covered by the above.
+	 * covered by the above.  As well
 	 */
 	if isAuthenticationOk(message) {
 		termMsg := GetTerminateMessage()
