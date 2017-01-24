@@ -65,7 +65,7 @@ func handleClientConnection(client net.Conn) {
 	masterBuf := make([]byte, 4096)
 	var writeLen int
 	var readLen int
-	var msgType string
+	var messageType byte
 	var writeCase, startCase, finishCase = false, false, false
 	var reqLen int
 	var nextNode *config.Node
@@ -81,7 +81,7 @@ func handleClientConnection(client net.Conn) {
 			return
 		}
 
-		msgType = string(masterBuf[0])
+		messageType = getMessageType(masterBuf)
 
 		// adapt inbound data
 		err = config.Cfg.Adapter.Do(masterBuf, reqLen)
@@ -89,10 +89,10 @@ func handleClientConnection(client net.Conn) {
 			glog.Errorln("[proxy] error adapting inbound" + err.Error())
 		}
 
-		if msgType == "X" {
+		if messageType == TERMINATE_MESSAGE_TYPE {
 			glog.V(2).Infoln("termination msg received")
 			return
-		} else if msgType == "Q" {
+		} else if messageType == QUERY_MESSAGE_TYPE {
 			poolIndex = -1
 
 			// Determine if the query has an annotation.
@@ -173,7 +173,7 @@ func handleClientConnection(client net.Conn) {
 
 		} else {
 
-			glog.V(2).Infoln("XXXX msgType here is " + msgType)
+			glog.V(2).Infoln("XXXX msgType here is " + string(messageType))
 
 			config.Cfg.GetAllConnections()
 
@@ -184,7 +184,7 @@ func handleClientConnection(client net.Conn) {
 				glog.Errorln("master WriteRead error:" + err.Error())
 			}
 
-			msgType = string(masterBuf[0])
+			messageType = getMessageType(masterBuf)
 
 			//write to client only the master response
 			writeLen, err = client.Write(masterBuf[:readLen])
@@ -200,6 +200,7 @@ func handleClientConnection(client net.Conn) {
 	}
 	glog.V(2).Infoln("[proxy] closing client conn")
 }
+
 func checkError(err error) {
 	if err != nil {
 		glog.Fatalf("Fatal	error:	%s", err.Error())
