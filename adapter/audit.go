@@ -1,5 +1,5 @@
 /*
-Copyright 2016 Crunchy Data Solutions, Inc.
+Copyright 2017 Crunchy Data Solutions, Inc.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -22,20 +22,30 @@ import (
 
 var file *os.File
 
-func init() {
+func createFile(metadata map[string]interface{}, l *log.Logger) {
+
 	var err error
-	file, err = os.OpenFile("/tmp/audit.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
-	//file, err = os.Create("/tmp/audit.log")
+
+	var filepath = metadata["filepath"].(string)
+	if filepath == "" {
+		filepath = "/tmp/audit.log"
+	}
+	l.Println("audit adapter using filepath of " + filepath)
+
+	file, err = os.OpenFile(filepath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		log.Println(err.Error())
 	}
 }
 
 // Audit will create a adapter decorator with auditing concerns.
-func Audit(l *log.Logger) Decorator {
+func Audit(metadata map[string]interface{}, l *log.Logger) Decorator {
 	return func(c Adapter) Adapter {
 		return AdapterFunc(func(r []byte, i int) error {
 			now := time.Now()
+			if file == nil {
+				createFile(metadata, l)
+			}
 			file.WriteString(fmt.Sprintf("%s msg len=%d\n", now.String(), i))
 			file.Sync()
 			return c.Do(r, i)

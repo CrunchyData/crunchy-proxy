@@ -18,9 +18,13 @@
         "password": "password",
         "database": "postgres"
     },
-    "Adapters": [
-	    "audit"
-    ],
+    "Adapters": [{
+        "AdapterType": "audit",
+        "metadata": {
+            "Age": 6,
+            "filepath": "/tmp/audit.log2"
+        }
+    }],
     "Master": {
         "HostPort": "127.0.0.1:12000",
         "metadata": {

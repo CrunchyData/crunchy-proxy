@@ -64,7 +64,8 @@ The JSON parameters include:
 |credentials.username        |postgres username for pool connections | "postgres"
 |credentials.password        |postgres password for pool connections | "password"
 |credentials.database        |postgres database for pool connections | "postgres"
-|adapters|not implemented yet | "logging"
+|adapters|adaptertype| "audit"
+|adapters|metadata| map[string] interface{} which allows an abstract map of metadata to be defined for an adapter
 |Master.HostPort| the master backend hostname:port| "127.0.0.1:12000"
 |Replicas.HostPort| the replica backend hostname:port| "127.0.0.1:12002"
 |======================
@@ -74,7 +75,7 @@ The JSON parameters include:
 A test script is provided that will run a PostgreSQL cluster, with
 a single master and replica.  Run the database script as follows:
 ....
-export CCP_IMAGE_TAG=centos7-9.5-1.2.6
+export CCP_IMAGE_TAG=centos7-9.5-1.2.7
 bin/run-cluster.sh
 ....
 

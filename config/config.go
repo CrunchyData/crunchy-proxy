@@ -70,6 +70,11 @@ type Node struct {
 	Stats        NodeStats         `json:"-"`
 }
 
+type Adapter struct {
+	AdapterType string                 `json:"adaptertype"`
+	Metadata    map[string]interface{} `json:"metadata"`
+}
+
 type Config struct {
 	Name             string          `json:"name"`
 	HostPort         string          `json:"hostport"`      //listen on host:port
@@ -81,7 +86,7 @@ type Config struct {
 	Pool             PoolConfig      `json:"pool"`
 	Master           Node            `json:"master"`
 	Replicas         []Node          `json:"replicas"`
-	Adapters         []string        `json:"adapters"`
+	Adapters         []Adapter       `json:"adapters"`
 	Healthcheck      Healthcheck     `json:"healthcheck"`
 	Adapter          adapter.Adapter `json:"-"`
 }
@@ -110,7 +115,13 @@ func (c Config) PrintNodeInfo() {
 }
 
 func PrintExample() {
-	ds := []string{"logging", "audit"}
+	var ds = make([]Adapter, 1)
+	ds[0] = Adapter{
+		AdapterType: "audit",
+	}
+	ds[0].Metadata = make(map[string]interface{})
+	ds[0].Metadata["Age"] = 6
+	ds[0].Metadata["Filepath"] = "/tmp/audit.log"
 	var pool = PoolConfig{
 		Capacity: 2}
 	cred := PGCredentials{
@@ -219,12 +230,12 @@ func (c *Config) SetupAdapters() {
 	var ds []adapter.Decorator = make([]adapter.Decorator, 0)
 
 	for i := 0; i < len(c.Adapters); i++ {
-		glog.V(2).Infof("---- Setup '%s' Adapter ----", c.Adapters[i])
-		switch c.Adapters[i] {
+		glog.V(2).Infof("---- Setup '%q' Adapter ----", c.Adapters[i])
+		switch c.Adapters[i].AdapterType {
 		case "audit":
-			ds = append(ds, adapter.Audit(log.New(os.Stdout, "[audit adapter]", 0)))
-		case "logging":
-			ds = append(ds, adapter.Logging(log.New(os.Stdout, "[log adapter]", 0)))
+
+			glog.V(2).Infof("---- added audit adapter")
+			ds = append(ds, adapter.Audit(c.Adapters[i].Metadata, log.New(os.Stdout, "[audit adapter]", 0)))
 		default:
 			glog.Errorf("Invalid adapter: %s", c.Adapters[i])
 		}
