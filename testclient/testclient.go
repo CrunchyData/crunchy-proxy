@@ -45,7 +45,12 @@ func main() {
 	var dbHost = hostportarr[0]
 	var dbPort = hostportarr[1]
 
-	log.Println("connecting to host:" + dbHost + " port:" + dbPort + " user:" + userid + " password:" + password + " database:" + database)
+	log.Println("connecting to host:" + dbHost +
+		" port:" + dbPort +
+		" user:" + userid +
+		" password:" + password +
+		" database:" + database)
+
 	conn, err = GetDBConnection(dbHost, userid, dbPort, database, password)
 
 	checkError(err)
@@ -69,17 +74,18 @@ func main() {
 	}
 
 	log.Println("execution ends")
+
 	var endTime = time.Since(startTime)
+
 	log.Printf("Duration %s\n", endTime)
 
 	conn.Close()
 	os.Exit(0)
-
 }
 
 func OneRow(conn *sql.DB) {
 	var timestamp string
-	err := conn.QueryRow("select /*read */ text(now())").Scan(&timestamp)
+	err := conn.QueryRow("/* read */ select text(now())").Scan(&timestamp)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Println("no rows returned")
@@ -89,9 +95,10 @@ func OneRow(conn *sql.DB) {
 		log.Println(timestamp + " was returned")
 	}
 }
+
 func TwoRows(conn *sql.DB) {
 	var timestamp string
-	rows, err := conn.Query("select /* read */ text(generate_series(1,2))")
+	rows, err := conn.Query("/* read */ select text(generate_series(1,2))")
 	defer rows.Close()
 
 	for rows.Next() {
@@ -118,11 +125,20 @@ func GetDBConnection(dbHost string, userid string, dbPort string, database strin
 	var err error
 
 	if password == "" {
-		//log.Println("a open db with dbHost=[" + dbHost + "] userid=[" + userid + "] dbPort=[" + dbPort + "] database=[" + database + "]")
-		dbConn, err = sql.Open("postgres", "sslmode=disable user="+userid+" host="+dbHost+" port="+dbPort+" dbname="+database)
+		dbConn, err = sql.Open("postgres",
+			"sslmode=disable user="+userid+
+				" host="+dbHost+
+				" port="+dbPort+
+				" dbname="+database+
+				" sslmode=disable")
 	} else {
-		//log.Println("b open db with dbHost=[" + dbHost + "] userid=[" + userid + "] dbPort=[" + dbPort + "] database=[" + database + "] password=[" + password + "]")
-		dbConn, err = sql.Open("postgres", "sslmode=disable user="+userid+" host="+dbHost+" port="+dbPort+" dbname="+database+" password="+password)
+		dbConn, err = sql.Open("postgres",
+			"sslmode=disable user="+userid+
+				" host="+dbHost+
+				" port="+dbPort+
+				" dbname="+database+
+				" password="+password+
+				" sslmode=disable")
 	}
 	if err != nil {
 		log.Println("error in getting connection :" + err.Error())
