@@ -28,7 +28,6 @@
 		}
 	},
 	"Adapters": [
-		"audit"
 	],
 	"Master": {
 		"HostPort": "master.crunchy.lab:12000",
