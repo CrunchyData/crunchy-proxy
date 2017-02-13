@@ -40,22 +40,35 @@ type NodeStats struct {
 }
 
 type NodePool struct {
-	Channel     chan int       `json:"-"`
-	Connections []*net.TCPConn `json:"-"`
+	Channel     chan int   `json:"-"`
+	Connections []net.Conn `json:"-"`
 }
 
 type PoolConfig struct {
 	Capacity int `json:"capacity"`
 }
 
+type SSLConfig struct {
+	Enable        bool   `json:"enable"`
+	SSLMode       string `json:"sslmode"`
+	SSLCert       string `json:"sslcert,omitempty"`
+	SSLKey        string `json:"sslkey,omitempty"`
+	SSLRootCA     string `json:"sslrootca,omitempty"`
+	SSLServerCert string `json:"sslservercert,omitempty"`
+	SSLServerKey  string `json:"sslserverkey,omitempty"`
+	SSLServerCA   string `json:"sslserverca,omitempty"`
+}
+
 type PGCredentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
+	Username string            `json:"username"`
+	Password string            `json:"password,omitempty"`
+	Database string            `json:"database"`
+	SSL      SSLConfig         `json:"ssl"`
+	Options  map[string]string `json:"options"`
 }
 
 type Healthcheck struct {
-	Delay int    `json:"delay"` //remote host:port
+	Delay int    `json:"delay"`
 	Query string `json:"query"`
 }
 
@@ -64,8 +77,7 @@ type Node struct {
 	Metadata     map[string]string `json:"metadata"`
 	Healthy      bool              `json:"-"`
 	HCConnection net.Conn          `json:"-"`
-	TCPAddr      *net.TCPAddr      `json:"-"`
-	TCPConn      *net.TCPConn      `json:"-"`
+	Connection   net.Conn          `json:"-"`
 	Pool         NodePool          `json:"-"`
 	Stats        NodeStats         `json:"-"`
 }
@@ -124,10 +136,6 @@ func PrintExample() {
 	ds[0].Metadata["Filepath"] = "/tmp/audit.log"
 	var pool = PoolConfig{
 		Capacity: 2}
-	cred := PGCredentials{
-		Username: "logging",
-		Password: "audit",
-		Database: "database1"}
 
 	var ms = Node{
 		HostPort: "master:5432"}
@@ -150,7 +158,6 @@ func PrintExample() {
 		HostPort:    "localhost:5432",
 		Master:      ms,
 		Pool:        pool,
-		Credentials: cred,
 		Replicas:    rs,
 		Healthcheck: hs,
 		Adapters:    ds}
@@ -179,15 +186,9 @@ func ReadConfig() {
 	if byt, err = ioutil.ReadFile(filePath); err != nil {
 		panic(err)
 	}
+
 	if err = json.Unmarshal(byt, &Cfg); err != nil {
 		panic(err)
-	}
-
-	Cfg.Master.TCPAddr, err = net.ResolveTCPAddr("tcp4", Cfg.Master.HostPort)
-	checkError(err)
-	for n := 0; n < len(Cfg.Replicas); n++ {
-		Cfg.Replicas[n].TCPAddr, err = net.ResolveTCPAddr("tcp4", Cfg.Replicas[n].HostPort)
-		checkError(err)
 	}
 
 	if Cfg.ReadAnnotation == "" {
@@ -211,16 +212,6 @@ func ReadConfig() {
 	glog.V(2).Infof("[config] %s is the ReadAnnotation", Cfg.ReadAnnotation)
 	glog.V(2).Infof("[config] %s is the StartAnnotation", Cfg.StartAnnotation)
 	glog.V(2).Infof("[config] %s is the FinishAnnotation", Cfg.FinishAnnotation)
-
-}
-
-func (c *Config) GetAllConnections() {
-	var err error
-	glog.V(2).Infoln("dialing " + c.Master.HostPort)
-	c.Master.TCPConn, err = net.DialTCP("tcp", nil, c.Master.TCPAddr)
-	if err != nil {
-		glog.Errorln(err.Error())
-	}
 
 }
 
