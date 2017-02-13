@@ -16,6 +16,8 @@ limitations under the License.
 package proxy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/golang/glog"
 	"io"
@@ -28,13 +30,10 @@ import (
  * connection - the connection to which to send the message.
  * message - the message to send.
  */
-func send(connection net.Conn, message []byte) {
+func send(connection net.Conn, message []byte) error {
 	_, err := connection.Write(message)
 
-	if err != nil {
-		glog.Errorln("[proxy] Error sending message.")
-		glog.Errorf("[proxy] %s\n", err.Error())
-	}
+	return err
 }
 
 /*
@@ -46,12 +45,19 @@ func receive(connection net.Conn) ([]byte, int, error) {
 	buffer := make([]byte, 4096)
 	length, err := connection.Read(buffer)
 
-	if err != nil {
-		glog.Errorln("[proxy] Error receiving response.")
-		glog.Errorf("[proxy] %s\n", err.Error())
-	}
-
 	return buffer, length, err
+}
+
+func isSSLRequest(message []byte) bool {
+	var messageLength int32
+	var sslCode int32
+
+	reader := bytes.NewReader(message[0:4])
+	binary.Read(reader, binary.BigEndian, &messageLength)
+	reader.Reset(message[4:8])
+	binary.Read(reader, binary.BigEndian, &sslCode)
+
+	return (messageLength == 8 && sslCode == SSL_REQUEST_CODE)
 }
 
 /*
@@ -63,27 +69,26 @@ func receive(connection net.Conn) ([]byte, int, error) {
  * authenticates successfully with the master node, then 'true' is returned and
  * the authenticating connection is terminated.
  */
-func AuthenticateClient(client net.Conn) bool {
-	glog.Infoln("[proxy] Start client connection.")
+func AuthenticateClient(client net.Conn, message []byte, length int) bool {
+	glog.Infoln("[proxy] Authenticating client.")
 	var err error
 
 	/* Establish a connection with the master node. */
-	master, _ := net.DialTCP("tcp", nil, config.Cfg.Master.TCPAddr)
+	master, err := Connect(&config.Cfg.Master)
+	defer master.Close()
 
-	/* Receive the startup message from client. */
-	message, length, _ := receive(client)
-
-	/* Realy the startup message to master node. */
-	send(master, message[:length])
+	/* Relay the startup message to master node. */
+	err = send(master, message[:length])
 
 	/* Receive startup response. */
-	message, length, _ = receive(master)
+	message, length, err = receive(master)
 
 	/*
 	 * While the response for the master node is not an AuthenticationOK or
 	 * ErrorResponse keep relaying the mesages to/from the client/master.
 	 */
 	messageType := getMessageType(message)
+
 	for !isAuthenticationOk(message) && (messageType != ERROR_MESSAGE_TYPE) {
 		send(client, message[:length])
 		message, length, err = receive(client)
@@ -99,16 +104,16 @@ func AuthenticateClient(client net.Conn) bool {
 		 * closed.
 		 */
 		if (err != nil) && (err == io.EOF) {
-			glog.Infoln("The client closed the connection.")
-			glog.Infoln("If the client is 'psql' and the authentication method " +
+			glog.V(2).Infoln("The client closed the connection.")
+			glog.V(2).Infoln("If the client is 'psql' and the authentication method " +
 				"was 'password', then this behavior is expected.")
 			return false
 		}
 
 		send(master, message[:length])
-		message, length, _ = receive(master)
 
-		send(client, message[:length])
+		message, length, err = receive(master)
+
 		messageType = getMessageType(message)
 	}
 
@@ -116,18 +121,24 @@ func AuthenticateClient(client net.Conn) bool {
 	 * If the last response from the master node was AuthenticationOK, then
 	 * terminate the connection and return 'true' for a successful
 	 * authentication of the client.
-	 *
-	 * If the last response from the master is NOT AuthenticationOK, it is safe
-	 * to assume that it was an ErrorResponse as all over message types are
-	 * covered by the above.  As well
 	 */
 	if isAuthenticationOk(message) {
+		glog.Infoln("[proxy] Authentication successful.")
 		termMsg := GetTerminateMessage()
 		send(master, termMsg)
+		send(client, message[:length])
 		master.Close()
 		return true
 	} else {
 		glog.Errorln("[proxy] Error occurred on client startup.")
+		glog.Errorf("[proxy] Message Type: %s\n", string(getMessageType(message)))
+
+		buffer := bytes.NewBuffer(message[5:])
+		for t := buffer.Next(1)[0]; t != byte(0); t = buffer.Next(1)[0] {
+			msg, _ := buffer.ReadString(byte(0))
+			glog.Errorf("%s: %s", string(t), msg)
+		}
+
 		return false
 	}
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/crunchydata/crunchy-proxy/proxy"
 	"github.com/golang/glog"
 	_ "github.com/lib/pq"
-	"strings"
+	"net"
 	"sync"
 	"time"
 )
@@ -53,7 +53,7 @@ func StartHealthcheck() {
 
 		// Check master node.
 		glog.V(2).Info("[hc] Checking Master")
-		result = healthcheckQuery(config.Cfg.Credentials, config.Cfg.Healthcheck.Query, config.Cfg.Master)
+		result = healthcheckQuery(config.Cfg.Master)
 
 		event = ProxyEvent{
 			Name:    "hc",
@@ -77,7 +77,7 @@ func StartHealthcheck() {
 		// Check replica nodes.
 		for i := range config.Cfg.Replicas {
 			glog.V(2).Infof("[hc] Checking Replica %d\n", i)
-			result = healthcheckQuery(config.Cfg.Credentials, config.Cfg.Healthcheck.Query, config.Cfg.Replicas[i])
+			result = healthcheckQuery(config.Cfg.Replicas[i])
 
 			event = ProxyEvent{
 				Name:    "hc",
@@ -103,22 +103,12 @@ func StartHealthcheck() {
 	}
 }
 
-func healthcheckQuery(cred config.PGCredentials, query string, node config.Node) bool {
+func healthcheckQuery(node config.Node) bool {
+	connection, err := getDBConnection(node)
 
-	var conn *sql.DB
-	var rows *sql.Rows
-	var err error
-	var hostport = strings.Split(node.HostPort, ":")
-	var dbHost = hostport[0]
-	var dbUser = cred.Username
-	var dbPassword = cred.Password
-	var dbPort = hostport[1]
-	var database = cred.Database
-
-	conn, err = getDBConnection(dbHost, dbUser, dbPort, database, dbPassword)
 	defer func() {
-		if conn != nil {
-			conn.Close()
+		if connection != nil {
+			connection.Close()
 		}
 	}()
 
@@ -127,7 +117,8 @@ func healthcheckQuery(cred config.PGCredentials, query string, node config.Node)
 		return false
 	}
 
-	rows, err = conn.Query(query)
+	rows, err := connection.Query(config.Cfg.Healthcheck.Query)
+
 	defer func() {
 		if rows != nil {
 			rows.Close()
@@ -142,23 +133,34 @@ func healthcheckQuery(cred config.PGCredentials, query string, node config.Node)
 	return true
 }
 
-func getDBConnection(dbHost string, dbUser string, dbPort string, database string, dbPassword string) (*sql.DB, error) {
+func getDBConnection(node config.Node) (*sql.DB, error) {
+	host, port, _ := net.SplitHostPort(node.HostPort)
 
-	var dbConn *sql.DB
-	var err error
-	var connectionString string
+	connectionString := fmt.Sprintf("host=%s port=%s ", host, port)
+	connectionString += fmt.Sprintf(" user=%s", config.Cfg.Credentials.Username)
+	connectionString += fmt.Sprintf(" database=%s", config.Cfg.Credentials.Database)
 
-	if dbPassword == "" {
-		connectionString = fmt.Sprintf("host=%s port=%s user=%s database=%s sslmode=disable",
-			dbHost, dbPort, dbUser, database)
-	} else {
-		connectionString = fmt.Sprintf("host=%s port=%s user=%s password=%s database=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, database)
+	connectionString += fmt.Sprintf(" sslmode=%s", config.Cfg.Credentials.SSL.SSLMode)
+	connectionString += " application_name=proxy_healthcheck"
+
+	if config.Cfg.Credentials.Password != "" {
+		connectionString += fmt.Sprintf(" password=%s", config.Cfg.Credentials.Password)
 	}
 
-	glog.V(5).Infof("[hc] Opening connection with parameters: %s\n", connectionString)
+	if config.Cfg.Credentials.SSL.Enable {
+		connectionString += fmt.Sprintf(" sslcert=%s", config.Cfg.Credentials.SSL.SSLCert)
+		connectionString += fmt.Sprintf(" sslkey=%s", config.Cfg.Credentials.SSL.SSLKey)
+		connectionString += fmt.Sprintf(" sslrootcert=%s", config.Cfg.Credentials.SSL.SSLRootCA)
+	}
 
-	dbConn, err = sql.Open("postgres", connectionString)
+	/* Build connection string. */
+	for key, value := range config.Cfg.Credentials.Options {
+		connectionString += fmt.Sprintf(" %s=%s", key, value)
+	}
+
+	glog.V(2).Infof("[hc] Opening connection with parameters: %s\n", connectionString)
+
+	dbConn, err := sql.Open("postgres", connectionString)
 
 	if err != nil {
 		glog.Errorf("[hc] Error creating connection : %s\n", err.Error())

@@ -19,11 +19,6 @@ import (
 	"net"
 )
 
-func ReturnConnection(ch chan int, connIndex int) {
-	glog.V(2).Infof("returning poolIndex %d\n", connIndex)
-	ch <- connIndex
-}
-
 func SetupPools() {
 	for i := 0; i < len(config.Cfg.Replicas); i++ {
 		SetupPoolForNode(&config.Cfg.Replicas[i])
@@ -32,22 +27,8 @@ func SetupPools() {
 	SetupPoolForNode(&config.Cfg.Master)
 }
 
-func connectPool(hostPort string) (*net.TCPConn, error) {
-	var address *net.TCPAddr
-	var connection *net.TCPConn
-	var err error
-
-	address, err = net.ResolveTCPAddr("tcp4", hostPort)
-	if err != nil {
-		return connection, err
-	}
-	connection, err = net.DialTCP("tcp", nil, address)
-
-	return connection, err
-}
-
 func SetupPoolForNode(node *config.Node) {
-	var connection *net.TCPConn
+	var connection net.Conn
 	var err error
 
 	glog.Infof("[pool] Setting up connection pool for %s", node.HostPort)
@@ -58,15 +39,16 @@ func SetupPoolForNode(node *config.Node) {
 	 * add the connection the pool.
 	 */
 	node.Pool.Channel = make(chan int, config.Cfg.Pool.Capacity)
-	node.Pool.Connections = make([]*net.TCPConn, config.Cfg.Pool.Capacity)
+	node.Pool.Connections = make([]net.Conn, config.Cfg.Pool.Capacity)
 
 	for j := 0; j < config.Cfg.Pool.Capacity; j++ {
 
 		// Create a new pool connection.
-		connection, err = connectPool(node.HostPort)
+		connection, err = Connect(node)
 
 		if err != nil {
-			glog.Errorf("[pool] Error creating connection for node: %s...setting node to unhealthy \n", err.Error())
+			glog.Errorf("[pool] Error creating connection for node: "+
+				"%s...setting node to unhealthy \n", err.Error())
 			node.Healthy = false
 			return
 		}

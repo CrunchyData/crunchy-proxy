@@ -27,6 +27,7 @@ import (
 
 const PROTOCOL_VERSION int32 = 196608
 
+/* Authentication Method constants. */
 const (
 	AUTHENTICATION_OK            int32 = 0
 	AUTHENTICATION_KERBEROS_V5   int32 = 2
@@ -38,7 +39,7 @@ const (
 	AUTHENTICATION_SSPI          int32 = 9
 )
 
-// Constants for the message types
+/* PostgreSQL Message Type constants. */
 const (
 	AUTHENTICATION_MESSAGE_TYPE   byte = 'R'
 	ERROR_MESSAGE_TYPE            byte = 'E'
@@ -64,13 +65,75 @@ func NullTermToStrings(b []byte) (s []string) {
 	return
 }
 
+func Connect(node *config.Node) (net.Conn, error) {
+	glog.Infof("Connecting to %s\n", node.HostPort)
+	connection, err := net.Dial("tcp", node.HostPort)
+
+	if err != nil {
+		glog.Errorf("Error: %s\n", err.Error())
+	}
+
+	if config.Cfg.Credentials.SSL.Enable {
+		glog.Infoln("SSL is enabled. Determine if connection upgrade is required.")
+		var message []byte
+
+		/*
+		 * First determine if SSL is allowed by the backend. To do this, send an
+		 * SSL request. The response from the backend will be a single byte
+		 * message. If the value is 'S', then SSL connections are allowed and an
+		 * upgrade to the connection should be attempted. If the value is 'N',
+		 * then the backend does not support SSL connections.
+		 */
+
+		/* Create the SSL request message. */
+		messageLength := make([]byte, 4)
+		sslRequestCode := make([]byte, 4)
+
+		binary.BigEndian.PutUint32(messageLength, uint32(8))
+		message = append(message, messageLength...)
+		binary.BigEndian.PutUint32(sslRequestCode, uint32(80877103))
+		message = append(message, sslRequestCode...)
+
+		/* Send the SSL request message. */
+		_, err := connection.Write(message)
+
+		if err != nil {
+			glog.Errorln("[proxy] Error sending SSL request to backend.")
+			glog.Errorf("[proxy] %s\n", err.Error())
+		}
+
+		/* Received SSL response message. */
+		_, err = connection.Read(message)
+
+		if err != nil {
+			glog.Errorln("[proxy] Error receiving SSL response from backend.")
+			glog.Errorf("Error: %s\n", err.Error())
+		}
+
+		/*
+		 * If SSL is not allowed by the backend then close the connection and
+		 * throw an error.
+		 */
+		if len(message) > 0 && message[0] != 'S' {
+			glog.Errorln("[proxy] The backend does not allow SSL connections.")
+		} else {
+			glog.Infoln("[proxy] SSL connections are allowed.")
+			glog.Infoln("[proxy] Attempting to upgrade connection.")
+			connection = upgradeClientConnection(node, connection)
+			glog.Infoln("[protocol] Connectionn successfully upgraded.")
+		}
+	}
+
+	return connection, nil
+}
+
 /*
  * Handle authentication requests that are sent by the backend to the client.
  *
  * connection - the connection to authenticate against.
  * message - the authentication message sent by the backend.
  */
-func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
+func handleAuthenticationRequest(connection net.Conn, message []byte) bool {
 	var msgLength int32
 	var authType int32
 
@@ -99,6 +162,9 @@ func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
 		glog.Fatalln("[protocol] GSS authentication is not currently supported.")
 	case AUTHENTICATION_SSPI:
 		glog.Fatalln("[protocol] SSPI authentication is not currently supported.")
+	case AUTHENTICATION_OK:
+		/* Covers the case where the authentication type is 'cert'. */
+		return true
 	default:
 		glog.Fatalf("[protocol] Unknown authentication method: %d\n", authType)
 	}
@@ -112,7 +178,7 @@ func handleAuthenticationRequest(connection *net.TCPConn, message []byte) bool {
  *
  * connection - the connection to authenticate against.
  */
-func handleAuthClearText(connection *net.TCPConn) bool {
+func handleAuthClearText(connection net.Conn) bool {
 	var writeLength, readLength int
 	var response []byte
 	var err error
@@ -204,7 +270,7 @@ func createPasswordMessage(password string) []byte {
  *
  * connection - the connection to authenticate against.
  */
-func handleAuthMD5(connection *net.TCPConn, message []byte) bool {
+func handleAuthMD5(connection net.Conn, message []byte) bool {
 	var writeLength, readLength int
 	var err error
 
@@ -234,11 +300,13 @@ func handleAuthMD5(connection *net.TCPConn, message []byte) bool {
 
 	// Check that read was successful.
 	if err != nil {
-		glog.Errorln("[protocol] Error receiving authentication response from the backend.")
+		glog.Errorln("[protocol] Error receiving authentication response from" +
+			"the backend.")
 		glog.Errorf("[protocol] %s\n", err.Error())
 	}
 
-	glog.V(2).Infof("[protocol] %d bytes received from the backend.\n", readLength)
+	glog.V(2).Infof("[protocol] %d bytes received from the backend.\n",
+		readLength)
 
 	return isAuthenticationOk(message)
 }
@@ -312,7 +380,8 @@ func StartupRequest(buf []byte, bufLen int) {
 	reader.Reset(buf[4:8])
 	binary.Read(reader, binary.BigEndian, &startupProtocol)
 
-	glog.V(2).Infof("[protocol] StartupRequest: msglen=%d protocol=%d\n", msgLen, startupProtocol)
+	glog.V(2).Infof("[protocol] StartupRequest: msglen=%d protocol=%d\n",
+		msgLen, startupProtocol)
 }
 
 func QueryRequest(buf []byte) {
@@ -324,7 +393,8 @@ func QueryRequest(buf []byte) {
 
 	query = string(buf[5:msgLen])
 
-	glog.V(2).Infof("[protocol] QueryRequest: msglen=%d query=%s\n", msgLen, query)
+	glog.V(2).Infof("[protocol] QueryRequest: msglen=%d query=%s\n", msgLen,
+		query)
 }
 
 func NoticeResponse(buf []byte) {
@@ -336,7 +406,8 @@ func NoticeResponse(buf []byte) {
 	var fieldType = buf[5]
 	var fieldMsg = string(buf[6:msgLen])
 
-	glog.V(2).Infof("[protocol] NoticeResponse: msglen=%d fieldType=%x fieldMsg=%s\n", msgLen, fieldType, fieldMsg)
+	glog.V(2).Infof("[protocol] NoticeResponse: msglen=%d fieldType=%x fieldMsg=%s\n",
+		msgLen, fieldType, fieldMsg)
 }
 
 func RowDescription(buf []byte, bufLen int) {
@@ -372,7 +443,8 @@ func DataRow(buf []byte) {
 
 	fieldValue = string(buf[11 : fieldLen+11])
 
-	glog.V(2).Infof("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n", numFields, msgLen, fieldLen, fieldValue)
+	glog.V(2).Infof("[protocol] DataRow: numfields=%d msglen=%d fieldLen=%d fieldValue=%s\n",
+		numFields, msgLen, fieldLen, fieldValue)
 }
 
 func CommandComplete(buf []byte) {
@@ -403,11 +475,29 @@ func GetTerminateMessage() []byte {
 }
 
 /*
+ * Create an SSL startup request message.
+ */
+/*func sslRequest() []byte {
+	var buffer []byte
+
+	messageLength := make([]byte, 4)
+	sslRequestCode := make([]byte, 4)
+
+	binary.BigEndian.PutUint32(messageLength, uint32(8))
+	buffer = append(buffer, messageLength...)
+
+	binary.BigEndian.PutUint32(sslRequestCode, uint32(SSL_REQUEST_CODE))
+	buffer = append(buffer, sslRequestCode...)
+
+	return buffer
+}*/
+
+/*
  * Authenticate a connection.
  *
  * connection - the connection to authenticate against.
  */
-func Authenticate(connection *net.TCPConn) bool {
+func Authenticate(connection net.Conn) bool {
 	var readLength, writeLength int
 	var err error
 	var responseMessage []byte
@@ -422,7 +512,8 @@ func Authenticate(connection *net.TCPConn) bool {
 		glog.V(2).Infoln("[protocol] Startup message successfully sent to the backend.")
 		glog.V(2).Infof("[protocol] %d bytes written to the backend.\n", writeLength)
 	} else {
-		glog.Errorf("[protocol] An error occurred sending the startup message: %s\n", err.Error())
+		glog.Errorf("[protocol] An error occurred sending the startup message: "+
+			"%s\n", err.Error())
 	}
 
 	// Receive startup reponse from the backend.
@@ -430,7 +521,8 @@ func Authenticate(connection *net.TCPConn) bool {
 	readLength, err = connection.Read(responseMessage)
 
 	if err == nil {
-		glog.V(2).Infoln("[protocol] Startup response message successfully received from the backend.")
+		glog.V(2).Infoln("[protocol] Startup response message successfully " +
+			"received from the backend.")
 		glog.V(2).Infof("[protocol] %d bytes received from the backend.\n", readLength)
 	} else {
 		glog.Errorf("[protocol] An error occurred receiving the startup response: %s\n", err.Error())
@@ -443,8 +535,10 @@ func Authenticate(connection *net.TCPConn) bool {
 	 * message should be an authentication type which has a value of 'R'.
 	 */
 	if responseMessage[0] != AUTHENTICATION_MESSAGE_TYPE {
-		glog.Errorln("[protocol] Received incorrect message type: should receive a authentication message type (%s).\n",
-			string(AUTHENTICATION_MESSAGE_TYPE))
+		glog.Errorf("[protocol] Received incorrect message type: should "+
+			"receive a authentication message type (%s), received (%s).\n",
+			string(AUTHENTICATION_MESSAGE_TYPE),
+			string(responseMessage[0]))
 	}
 
 	// Handle authentication request.
@@ -547,8 +641,6 @@ func createStartupMessage() []byte {
 
 	/*
 	 * Set the 'extra_float_digits' parameter.
-	 *
-	 * TODO: Determine why this parameter is necessary.
 	 */
 	key = "extra_float_digits"
 	buffer = append(buffer, key...)

@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/golang/glog"
+	"io"
 	"net"
 )
 
@@ -50,18 +51,65 @@ func handleListener(listener net.Listener) {
 	}
 }
 
-func handleClientConnection(client net.Conn) {
-	authenticated := AuthenticateClient(client)
+func getProtocol(startupMessage []byte) int32 {
+	var protocol int32
 
-	// If the client could not authenticate then go no further.
+	reader := bytes.NewReader(startupMessage[4:8])
+	binary.Read(reader, binary.BigEndian, &protocol)
+
+	return protocol
+}
+
+func handleClientConnection(client net.Conn) {
+	/* Get the client startup message. */
+	message, length, err := receive(client)
+
+	/* Get the protocol from the startup message.*/
+	protocol := getProtocol(message)
+
+	if protocol == SSL_REQUEST_CODE {
+		message = make([]byte, 1)
+
+		/* Determine which SSL response to send to client. */
+		if config.Cfg.Credentials.SSL.Enable {
+			message[0] = SSL_ALLOWED
+		} else {
+			message[0] = SSL_NOT_ALLOWED
+		}
+
+		/*
+		 * Send the SSL response back to the client and wait for it to send the
+		 * regular startup packet.
+		 */
+		send(client, message)
+
+		/* Upgrade the client connection if required. */
+		client = upgradeServerConnection(client)
+		defer client.Close()
+
+		/*
+		 * Re-read the startup message from the client. It is possible that the
+		 * client might not like the response given and as a result it might
+		 * close the connection. This is not an 'error' condition as this is an
+		 * expected behavior from a client.
+		 */
+		if message, length, err = receive(client); err == io.EOF {
+			glog.Infoln("[proxy] The client closed the connection.")
+			return
+		}
+
+		protocol = getProtocol(message)
+	}
+
+	/* Authenticate the client against the appropriate backend. */
+	authenticated := AuthenticateClient(client, message, length)
+
+	/* If the client could not authenticate then go no further. */
 	if !authenticated {
 		glog.Errorln("[proxy] client could not authenticate and connect.")
 		return
 	}
 
-	defer client.Close()
-
-	var err error
 	masterBuf := make([]byte, 4096)
 	var writeLen int
 	var readLen int
@@ -69,15 +117,21 @@ func handleClientConnection(client net.Conn) {
 	var writeCase, startCase, finishCase = false, false, false
 	var reqLen int
 	var nextNode *config.Node
-	var backendConn *net.TCPConn
+	var backendConn net.Conn
 	var poolIndex int
 	var statementBlock = false
 
 	for {
-
 		reqLen, err = client.Read(masterBuf)
+
 		if err != nil {
-			glog.Errorln("[proxy] error reading from client conn" + err.Error())
+			switch err {
+			case io.EOF:
+				glog.Infoln("[proxy] the client closed the connection.")
+			default:
+				glog.Errorf("[proxy] error reading from client conn: %s\n",
+					err.Error())
+			}
 			return
 		}
 
@@ -96,13 +150,18 @@ func handleClientConnection(client net.Conn) {
 			poolIndex = -1
 
 			// Determine if the query has an annotation.
-			writeCase, startCase, finishCase = IsWriteAnno(config.Cfg.ReadAnnotation,
-				config.Cfg.StartAnnotation, config.Cfg.FinishAnnotation, masterBuf)
+			writeCase, startCase, finishCase = IsWriteAnno(
+				config.Cfg.ReadAnnotation,
+				config.Cfg.StartAnnotation,
+				config.Cfg.FinishAnnotation,
+				masterBuf)
 
-			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n", writeCase, startCase, finishCase)
+			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n",
+				writeCase, startCase, finishCase)
 
 			if statementBlock {
-				glog.V(2).Infof("[proxy] inside a statementBlock") // keep using the same node and connection
+				// keep using the same node and connection
+				glog.V(2).Infof("[proxy] inside a statementBlock")
 			} else {
 				if startCase {
 					statementBlock = true
@@ -140,45 +199,58 @@ func handleClientConnection(client net.Conn) {
 			if err != nil {
 				glog.Errorln(err.Error())
 				glog.Errorln("[proxy] backend write error..retrying...")
+
 				//retry logic
 				//mark node as unhealthy
 				config.UpdateHealth(nextNode, false)
-				//return connection index to pool
-				ReturnConnection(nextNode.Pool.Channel, poolIndex)
+
+				// return connection index to pool
+				nextNode.Pool.Channel <- poolIndex
+
 				//get new connection on master
 				nextNode, err = config.Cfg.GetNextNode(true)
 				poolIndex = <-nextNode.Pool.Channel
 				backendConn = nextNode.Pool.Connections[poolIndex]
+
 				clientErr, err = processBackend(client, backendConn, masterBuf, reqLen)
+
 				if clientErr != nil {
 					glog.Errorln(clientErr.Error())
 					glog.Errorln("[proxy] client write erroron retry..giving up on statement")
+
 					return
 				}
+
 				if err != nil {
 					glog.Errorln("retry of query also failed, giving up on this statement...")
-					ReturnConnection(nextNode.Pool.Channel, poolIndex)
+
+					// return connection to pool
+					nextNode.Pool.Channel <- poolIndex
 					config.UpdateHealth(nextNode, false)
 					writeLen, err = client.Write(GetTerminateMessage())
+
 					if err != nil {
 						glog.Errorln(err.Error())
 					}
+
 					return
 				}
 			}
 
+			/*
+			 * TODO: This could probably be cleaned up/refactored such that
+			 * multiple calls to return the node to the pool is not necessary.
+			 */
 			if poolIndex != -1 {
-				ReturnConnection(nextNode.Pool.Channel, poolIndex)
+				nextNode.Pool.Channel <- poolIndex
 			}
 
 		} else {
 
 			glog.V(2).Infoln("XXXX msgType here is " + string(messageType))
 
-			config.Cfg.GetAllConnections()
-
-			writeLen, err = config.Cfg.Master.TCPConn.Write(masterBuf[:reqLen])
-			readLen, err = config.Cfg.Master.TCPConn.Read(masterBuf)
+			writeLen, err = config.Cfg.Master.Connection.Write(masterBuf[:reqLen])
+			readLen, err = config.Cfg.Master.Connection.Read(masterBuf)
 
 			if err != nil {
 				glog.Errorln("master WriteRead error:" + err.Error())
@@ -219,7 +291,7 @@ func getMessageTypeAndLength(buf []byte) (string, int) {
 	return string(buf[0]), int(msgLen)
 }
 
-func processBackend(client net.Conn, backendConn *net.TCPConn, masterBuf []byte, reqLen int) (error, error) {
+func processBackend(client net.Conn, backendConn net.Conn, masterBuf []byte, reqLen int) (error, error) {
 	var writeLen, msgLen, readLen int
 	var msgType string
 	var err error

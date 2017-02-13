@@ -1,0 +1,47 @@
+{
+	"Name": "Crunchy Proxy SSL Configuration",
+	"HostPort": "proxy.crunchy.lab:5432",
+	"AdminHostPort": "localhost:10000",
+	"ReadAnnotation": "read",
+	"StartAnnotation": "start",
+	"FinishAnnotation": "finish",
+	"healthcheck": {
+		"delay": 60,
+		"query": "select now();"
+	},
+	"pool": {
+		"enabled": true,
+		"capacity": 2
+	},
+	"Credentials": {
+		"Username": "postgres",
+		"Database": "postgres",
+		"SSL": {
+			"Enable": true,
+			"SSLMode": "require",
+			"SSLCert": "./certs/client/client.crt",
+			"SSLKey": "./certs/client/client.key",
+			"SSLRootCA": "./certs/client/ca.crt",
+			"SSLServerCert": "./certs/server/server.crt",
+			"SSLServerKey": "./certs/server/server.key",
+			"SSLServerCA": "./certs/server/ca.crt"
+		}
+	},
+	"Adapters": [
+		"audit"
+	],
+	"Master": {
+		"HostPort": "master.crunchy.lab:12000",
+		"metadata": {
+			"cpu": "large",
+			"disk": "fast"
+		}
+	},
+	"Replicas":[{
+		"HostPort": "replica.crunchy.lab:12000",
+		"metadata": {
+			"cpu": "small",
+			"disk": "slow"
+		}
+	}]
+}
