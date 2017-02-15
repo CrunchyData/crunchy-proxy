@@ -475,24 +475,6 @@ func GetTerminateMessage() []byte {
 }
 
 /*
- * Create an SSL startup request message.
- */
-/*func sslRequest() []byte {
-	var buffer []byte
-
-	messageLength := make([]byte, 4)
-	sslRequestCode := make([]byte, 4)
-
-	binary.BigEndian.PutUint32(messageLength, uint32(8))
-	buffer = append(buffer, messageLength...)
-
-	binary.BigEndian.PutUint32(sslRequestCode, uint32(SSL_REQUEST_CODE))
-	buffer = append(buffer, sslRequestCode...)
-
-	return buffer
-}*/
-
-/*
  * Authenticate a connection.
  *
  * connection - the connection to authenticate against.
