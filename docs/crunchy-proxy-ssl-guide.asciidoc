@@ -1,0 +1,110 @@
+= SSL Guide - Crunchy Proxy
+Crunchy Data Solutions, Inc.
+v0.0.1, {docdate}
+:title-logo-image: image:crunchy_logo.png["CrunchyData Logo", align="center", scalewidth="80%"]
+
+== Overview
+
+Crunchy Proxy supports SSL connections as well as Certificate based
+authentication.
+
+The general concept is that since the proxy behaves as both a 'server' and a
+'client', it must be configured both from an SSL perspective. Therefore, if
+this feature is enabled, then certificates for both scenarios must be available
+to the proxy.
+
+When enabled, all pool connections between the proxy and the backends will be a
+TLS connection. As well, the temporary connection used to authenticate a
+connecting client will also utilize a TLS connection to communicate with the
+backend performing the authentications.
+
+If this feature is enable, the proxy will return the appropriate message to the
+client that SSL connections are allowed.  Therefore, it is up to the connecting
+client to choose whether or not it would like to proceed with making a
+connection or not.
+
+== SSL Certificates
+
+For testing purposes certificates have been provided in the projects 'certs'
+directory. As well, scripts have been provided to generate new certificates for
+both the server and client.  These scripts will create a CA, Intermediate CA's
+and the required server and client certificates. The resulting server
+certificate is a wildcard certificate so that it can be used across the proxy,
+the master and the replicas.
+
+== Configuration
+
+The SSL configuration can be found within the 'Credentials' section of the
+proxy configuration file. The follow table enumerates and describes each
+configuration option. *Note*: '_Enable_' and '_SSLMode_' are required fields.
+
+[width="90%",cols="30,40,30",frame="topbot",options="header,footer"]
+|===
+| Parameter
+| Type
+| Description
+
+| Enable
+| boolean
+| Enables SSL connections through the proxy. Set true to allow, otherwise false
+*(required)*.
+
+| SSLMode
+| string
+| The client SSL mode. Valid values are 'disable', 'require', 'verify-ca' and
+'verify-full' *(required)*.
+
+| SSLCert
+| string
+| The path to the client certificate.
+
+| SSLKey
+| string
+| The path to the client key.
+
+| SSLRootCA
+| string
+| The path to the client root CA certificate.
+
+| SSLServerCert
+| string
+| The path to the server certificate.
+
+| SSLServerKey
+| string
+| The path to the server key.
+
+| SSLServerCA
+| string
+| The path to the server root CA certificate.
+|===
+
+*Example:*
+
+....
+[...]
+"Credentials": {
+	"Username": "postgres",
+	"Database": "postgres",
+	"SSL": {                                                                    
+		"Enable": true,                                                         
+		"SSLMode": "require",                                                   
+		"SSLCert": "./certs/client/client.crt",                                 
+		"SSLKey": "./certs/client/client.key",                                  
+		"SSLRootCA": "./certs/client/ca.crt",                                   
+		"SSLServerCert": "./certs/server/server.crt",                           
+		"SSLServerKey": "./certs/server/server.key",                            
+		"SSLServerCA": "./certs/server/ca.crt"                                  
+}
+[...]   
+....
+
+== Example Usage
+
+*Connecting with _psql_:*
+
+....
+$> psql "host=proxy.crunchy.lab port=5432 dbname=postgres user=postgres
+sslmode=verify-ca sslcert=./certs/client/client.crt
+sslkey=./certs/client/client.key sslrootcert=./certs/client/ca.crt"
+....
