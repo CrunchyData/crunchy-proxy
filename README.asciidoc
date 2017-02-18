@@ -21,6 +21,7 @@ PostgreSQL client would appear.  As described in more detail below, the *crunchy
  * ability to publish healthcheck events to consumers outside of the proxy
  * ability to load balance SQL statements across multiple replica backends
  * connection pooling
+ * support for certificate and SSL based authentication
  
 As described under "Approach" below, implementation of the *crunchy-proxy* requires that (1) a user has access to their application's SQL and (2) a user has the ability to add basic annotations to their SQL statements.
 
@@ -68,7 +69,6 @@ The following resources are useful in understanding the PostgreSQL wire protocol
 
 In the future, by working at the wire protocol level, *crunchy-proxy* can implement a variety of features important for high speed proxy handling and for supporting PostgreSQL features.
 
-
 == Execution
 
 The proxy is a golang binary, you execute it as follows:
@@ -89,12 +89,10 @@ found in the link:docs/crunchy-proxy-user-guide.asciidoc[User Guide]
 For Docker users, you can run the proxy using the 
 link:bin/run-docker.sh[run-docker.sh] script.
 
-
 == Feedback
 
 If you find a bug, or want to provide feedback on the design and features 
 feel free to create a github issue.  
-
 
 == Legal Notices
 
