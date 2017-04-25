@@ -54,17 +54,6 @@ const (
 	PASSWORD_MESSAGE_TYPE         byte = 'p'
 )
 
-func NullTermToStrings(b []byte) (s []string) {
-	var zb = []byte{0}
-	for _, x := range bytes.Split(b, zb) {
-		s = append(s, string(x))
-	}
-	if len(s) > 0 && s[len(s)-1] == "" {
-		s = s[:len(s)-1]
-	}
-	return
-}
-
 func Connect(node *config.Node) (net.Conn, error) {
 	glog.Infof("Connecting to %s\n", node.HostPort)
 	connection, err := net.Dial("tcp", node.HostPort)
