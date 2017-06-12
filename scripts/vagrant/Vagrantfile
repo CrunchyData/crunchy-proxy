@@ -1,0 +1,94 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+Vagrant.configure("2") do |config|
+
+  # vagrant vbguest plugin configurations
+  #
+  # Installation:
+  #   $> vagrant plugin install vagrant-vbguest
+  #
+  # https://github.com/dotless-de/vagrant-vbguest
+  #
+  # Virtual Box Guest Additions are not necessary for this setup. Therefore,
+  # there is no need to install or update the latest version. The centos/7
+  # base box does not have Guest Additions installed by default, therefore,
+  # if it becomes necessary to utilize functionality provide by them, then
+  # 'auto_update' should be set to 'true'.
+  config.vbguest.auto_update = false
+
+  # vagrant hostmanager plugin configurations
+  #
+  # Installation:
+  #   $> vagrant plugin install vagrant-hostmanager
+  #
+  # https://github.com/devopsgroup-io/vagrant-hostmanager
+  #
+  # Configure to only manage 'host' /etc/hosts file. Password may be required
+  # pending the host's environment.
+  config.hostmanager.enabled = true
+  config.hostmanager.manage_host = true
+  config.hostmanager.manage_guest = false
+  config.hostmanager.ignore_private_ip = false
+
+  # Vagrant binds the FQDN to localhost in /etc/hosts when a hostname if provided
+  # as part of the configuration. There is no way to disable this behavior,
+  # therefore we need to correct this by removing it.
+  config.vm.provision "shell",
+    inline: "sed -i'' \"/^127.0.0.1\\s$(hostname --fqdn)\\s$(hostname --short)$/d\" /etc/hosts"
+
+  # The VM's DNS resolver should point to the host. Enabling the
+  # 'natdnshostresolver' virualbox option on the VM will allow for this
+  # behavior.
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+  end
+
+  # -----------------
+  # VM CONFIGURATIONS
+  # -----------------
+
+  # PostgreSQL Master VM Configuration
+  config.vm.define "master" do |master|
+    master.vm.box = "centos/7"
+
+    master.vm.hostname = "master.crunchy.lab"
+
+	master.vm.network "private_network", ip: "192.168.56.100"
+
+	# Syncing the default folder is not required. There is no need to share
+	# files between the Host and the Guest at this point. Therefore, to avoid
+	# any potential permission or other issues, it is better to just disable
+	# it.
+	master.vm.synced_folder ".", "/vagrant", disabled: true
+
+	# Provision the system via Ansible.
+    master.vm.provision "ansible" do |ansible|
+      ansible.playbook = "ansible/master.yml"
+      ansible.verbose = "vv"
+      ansible.sudo = true
+    end
+  end
+
+  # PostgreSQL Replica VM Configuration
+  config.vm.define "replica" do |replica|
+    replica.vm.box = "centos/7"
+
+    replica.vm.hostname = "replica.crunchy.lab"
+
+	replica.vm.network "private_network", ip: "192.168.56.101"
+
+	# Syncing the default folder is not required. There is no need to share
+	# files between the Host and the Guest at this point. Therefore, to avoid
+	# any potential permission or other issues, it is better to just disable
+	# it.
+	replica.vm.synced_folder ".", "/vagrant", disabled: true
+
+	# Provision the system via Ansible.
+    replica.vm.provision "ansible" do |ansible|
+      ansible.playbook = "ansible/replica.yml"
+      ansible.verbose = "vv"
+      ansible.sudo = true
+    end
+  end
+
+end

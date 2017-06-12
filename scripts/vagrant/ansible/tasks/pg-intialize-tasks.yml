@@ -1,0 +1,14 @@
+---
+
+- name: "Check if database is initialized."
+  stat:
+    path: "{{ postgresql_data_dir }}/PG_VERSION"
+  register: pgdata_dir_version
+
+- name: "Ensure PostgreSQL database is initialized."
+  command: "{{ postgresql_bin_dir }}/initdb -D {{ postgresql_data_dir }}"
+  when: not pgdata_dir_version.stat.exists
+  become: yes
+  become_user: "{{ postgresql_user }}"
+
+# TODO add enable and start service.

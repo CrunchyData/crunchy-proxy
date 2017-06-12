@@ -1,0 +1,23 @@
+postgresql_version: "9.6"
+
+postgresql_user: "postgres"
+
+postgresql_group: "postgres"
+
+postgresql_data_dir: "/var/lib/pgsql/{{ postgresql_version}}/data"
+
+postgresql_bin_dir: "/usr/pgsql-{{ postgresql_version }}/bin"
+
+postgresql_config_file: "{{ postgresql_data_dir }}/postgresql.conf"
+
+postgresql_hba_file: "{{ postgresql_data_dir }}/pg_hba.conf"
+
+postgresql_config_options: []
+
+postgresql_hba_entries: []
+
+postgresql_packages:
+  - postgresql96
+  - postgresql96-libs
+  - postgresql96-server
+  - postgresql96-devel

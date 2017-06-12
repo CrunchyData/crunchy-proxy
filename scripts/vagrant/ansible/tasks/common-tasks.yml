@@ -1,0 +1,15 @@
+---
+
+- name: "Install ntp"
+  package:
+    name: "ntp"
+    state: installed
+
+- name: "Update ntp"
+  command: "ntpdate -b -u time.nist.gov"
+
+- name: "Enable ntp"
+  service:
+    name: "ntpd"
+    enabled: yes
+    state: started

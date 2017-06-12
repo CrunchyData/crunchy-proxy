@@ -1,0 +1,28 @@
+postgresql_config_options:
+  - option: "listen_address"
+    value: "*"
+
+# SSL Options
+  - option: "ssl"
+    value:  "on"
+  - option: "ssl_cert_file"
+    value:  "server.crt"
+  - option: "ssl_key_file"
+    value:  "server.key"
+  - option: "ssl_ca_file"
+    value:  "ca.crt"
+
+postgresql_hba_entries:
+  - type:     hostssl
+    database: all
+    user:     all
+    address:  0.0.0.0/0
+    method:   md5
+    state:    present
+
+  - type:     hostssl
+    database: replication
+    user:     masteruser
+    address:  0.0.0.0/0
+    method:   cert
+    state:    present

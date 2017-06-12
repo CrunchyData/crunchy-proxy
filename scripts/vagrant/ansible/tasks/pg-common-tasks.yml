@@ -1,0 +1,33 @@
+---
+
+- name: "Install PGDG Yum Repo"
+  yum:
+    name: "https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm"
+    state: installed
+
+- name: "Install PostgreSQL"
+  package:
+    name: "{{ item }}"
+    state: installed
+  with_items: "{{ postgresql_packages | list }}"
+
+- name: "Ensure PostgreSQL data directory exists."
+  file:
+    path: "{{ postgresql_data_dir }}"
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_group }}"
+    state: directory
+    mode: 0700
+
+- name: "Check if database is initialized."
+  stat:
+    path: "{{ postgresql_data_dir }}/PG_VERSION"
+  register: pgdata_dir_version
+
+- name: "Ensure PostgreSQL database is initialized."
+  command: "{{ postgresql_bin_dir }}/initdb -D {{ postgresql_data_dir }}"
+  when: not pgdata_dir_version.stat.exists
+  become: yes
+  become_user: "{{ postgresql_user }}"
+
+# TODO add enable and start service.

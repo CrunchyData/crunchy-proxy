@@ -1,0 +1,19 @@
+---
+
+- hosts: all
+
+  tasks:
+  # Include common tasks.
+  - include: "tasks/common-tasks.yml"
+
+  # Include common PG variables and tasks.
+  - include_vars: "vars/pg-common-vars.yml"
+  - include: "tasks/pg-common-tasks.yml"
+
+  # Include master specific configuration variables.
+  - include_vars: "vars/master-vars.yml"
+
+  # Configure.
+  - include: "tasks/pg-configure-tasks.yml"
+      
+    

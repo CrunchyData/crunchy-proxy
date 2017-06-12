@@ -1,0 +1,44 @@
+---
+
+- hosts: all
+
+  tasks:
+  # Include common tasks.
+  - include: "tasks/common-tasks.yml"
+
+  # Include common PG variables and tasks.
+  - include_vars: "vars/pg-common-vars.yml"
+  - include: "tasks/pg-common-tasks.yml"
+
+  # Include replica specific configuration variables.
+  - include_vars: "vars/replica-vars.yml"
+
+  # Setup replica.
+  - name: 
+
+  # Configure.
+  - include: "tasks/pg-configure-tasks.yml"
+      
+  - name: "Install SSL Server Certificate"
+    copy:
+      src: "files/certs/replica-server.crt"
+      dest: "{{ postgresql_data_dir }}/server.crt"
+      owner: "{{ postgres_user }}"
+      group: "{{ postgres_user }}"
+      mode:  "0600"
+
+  - name: "Install SSL Server Key"
+    copy:
+      src: "files/certs/replica-server.key"
+      dest: "{{ postgresql_data_dir }}/server.key"
+      owner: "{{ postgres_user }}"
+      group: "{{ postgres_user }}"
+      mode:  "0600"
+
+  - name: "Install Root CA Certificate"
+    copy:
+      src: "files/certs/ca.crt"
+      dest: "{{ postgresql_data_dir }}/ca.crt"
+      owner: "{{ postgres_user }}"
+      group: "{{ postgres_user }}"
+      mode:  "0600"
