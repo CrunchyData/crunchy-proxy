@@ -1,5 +1,5 @@
 postgresql_config_options:
-  - option: "listen_address"
+  - option: "listen_addresses"
     value: "*"
 
 # SSL Options

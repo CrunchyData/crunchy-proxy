@@ -4,6 +4,9 @@ postgresql_user: "postgres"
 
 postgresql_group: "postgres"
 
+postgresql_replication_user: "rep"
+postgresql_replication_user_passwd: "password"
+
 postgresql_data_dir: "/var/lib/pgsql/{{ postgresql_version}}/data"
 
 postgresql_bin_dir: "/usr/pgsql-{{ postgresql_version }}/bin"
@@ -21,3 +24,5 @@ postgresql_packages:
   - postgresql96-libs
   - postgresql96-server
   - postgresql96-devel
+
+replica_ip: "192.168.56.101"

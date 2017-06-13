@@ -16,3 +16,4 @@
     line: "{{ item.type}}\t{{ item.database }}\t{{ item.user }}\t{{ item.address}}\t{{ item.method }}"
     state: "{{ item.state | default('present') }}"
   with_items: "{{ postgresql_hba_entries }}"
+

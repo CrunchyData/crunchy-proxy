@@ -15,5 +15,16 @@
 
   # Configure.
   - include: "tasks/pg-configure-tasks.yml"
-      
-    
+  
+  # Install SSL Certificate
+  - include: "tasks/pg-ssl-tasks.yml"
+
+  - name: "Enable and Start PostgreSQL"
+    service:
+      name: "postgresql-9.6"
+      enabled: yes
+      state: restarted
+
+  # Setup Replication User
+  - name: "Create Replication User"
+    command: "psql -U postgres -c \"CREATE USER {{postgresql_replication_user}} REPLICATION LOGIN CONNECTION LIMIT 1 ENCRYPTED PASSWORD '{{postgresql_replication_user_passwd}}';\""

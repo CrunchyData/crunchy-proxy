@@ -1,0 +1,24 @@
+- name: "Install SSL Server Certificate"
+  copy:
+    src: "files/certs/server/server.crt"
+    dest: "{{ postgresql_data_dir }}/server.crt"
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_user }}"
+    mode:  "0600"
+
+- name: "Install SSL Server Key"
+  copy:
+    src: "files/certs/server/server.key"
+    dest: "{{ postgresql_data_dir }}/server.key"
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_user }}"
+    mode:  "0600"
+
+- name: "Install Root CA Certificate"
+  copy:
+    src: "files/certs/server/ca.crt"
+    dest: "{{ postgresql_data_dir }}/ca.crt"
+    owner: "{{ postgresql_user }}"
+    group: "{{ postgresql_user }}"
+    mode:  "0600"
+

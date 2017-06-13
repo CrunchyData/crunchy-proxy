@@ -1,0 +1,19 @@
+# certs
+
+This directory contains scripts to create example SSL certificates for both
+server and client applications.
+
+* generate-ssl.sh
+
+* generate-client-cert.sh
+
+This directory is referenced by the provisioning scripts for testing purposes.
+If anything is updated here, then those scripts will need to be updated as well.
+
+## server
+
+This directory contains example SSL server certificates.
+
+## client
+
+This directory contains example SSL client certificates.

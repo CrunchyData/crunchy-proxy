@@ -1,0 +1,27 @@
+# Vagrant Test/Development Environment
+
+This directory contains the configurations for creating a virtual development
+and test environment for this project.
+
+The Vagrantfile contains the following VM configurations:
+
+* master - the master node
+* replica - a replica node
+
+The setup and configuration of these nodes is provided by Ansible. Playbooks
+have been defined for each node as well as separate node specific variables.
+
+## Usage
+
+Create and provision the 'master' and 'replica' nodes.
+
+```
+$> vagrant up
+```
+
+Initialize the replica.
+
+```
+$> vagrant ssh replica -- 'bash -s' < ./initialize-replica.sh
+```
+

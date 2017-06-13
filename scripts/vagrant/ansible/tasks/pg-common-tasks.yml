@@ -29,5 +29,3 @@
   when: not pgdata_dir_version.stat.exists
   become: yes
   become_user: "{{ postgresql_user }}"
-
-# TODO add enable and start service.

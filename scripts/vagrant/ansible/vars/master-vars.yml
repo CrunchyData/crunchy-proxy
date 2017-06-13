@@ -1,0 +1,58 @@
+postgresql_config_options:
+  - option: "listen_addresses"
+    value: "*"
+
+# SSL Options
+  - option: "ssl"
+    value:  "on"
+  - option: "ssl_cert_file"
+    value:  "server.crt"
+  - option: "ssl_key_file"
+    value:  "server.key"
+  - option: "ssl_ca_file"
+    value:  "ca.crt"
+
+# Replication Options
+  - option: "wal_level"
+    value: "hot_standby"
+  - option: "archive_mode"
+    value: "on"
+  - option: "archive_command"
+    value: "cd ."
+  - option: "max_wal_senders"
+    value: "1"
+  - option: "hot_standby"
+    value: "on"
+
+
+postgresql_hba_entries:
+  # Non-SSL entries
+  - type: host
+    database: all
+    user: postgres
+    address: 192.168.56.0/24
+    method: trust
+    state: present
+
+  - type: host
+    database: replication
+    user: rep
+    address: "{{ replica_ip }}/32"
+    method: md5
+    state: present
+
+  # SSL entries
+  - type: hostssl
+    database: all
+    user: all
+    address: 0.0.0.0/0
+    method: md5
+    state: present
+
+  - type: hostssl
+    database: replication
+    user: rep
+    address: "{{ replica_ip }}/32"
+    method: cert
+    state: present
+
