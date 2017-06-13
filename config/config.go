@@ -15,321 +15,136 @@ limitations under the License.
 package config
 
 import (
-	"encoding/json"
-	"errors"
-	"flag"
-	"github.com/crunchydata/crunchy-proxy/adapter"
-	"github.com/golang/glog"
-	"io/ioutil"
-	"log"
-	"math/rand"
-	"net"
-	"os"
-	"sync"
-	"time"
+	//	"bytes"
+	//	"io/ioutil"
+
+	"github.com/spf13/viper"
+
+	"github.com/crunchydata/crunchy-proxy/common"
+	"github.com/crunchydata/crunchy-proxy/util/log"
 )
 
-const (
-	DEFAULT_READ_ANNOTATION   string = "read"
-	DEFAULT_START_ANNOTATION  string = "start"
-	DEFAULT_FINISH_ANNOTATION string = "finish"
-)
+var c Config
 
-type NodeStats struct {
-	Queries int `json:"-"`
+func init() {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+	viper.AddConfigPath("/etc/crunchy-proxy")
+	viper.AddConfigPath(".")
 }
 
-type NodePool struct {
-	Channel     chan int   `json:"-"`
-	Connections []net.Conn `json:"-"`
+func GetConfig() Config {
+	return c
+}
+
+func GetNodes() map[string]common.Node {
+	return c.Nodes
+}
+
+func GetProxyConfig() ProxyConfig {
+	return c.Server.Proxy
+}
+
+func GetAdminConfig() AdminConfig {
+	return c.Server.Admin
+}
+
+func GetPoolCapacity() int {
+	return c.Pool.Capacity
+}
+
+func GetCredentials() common.Credentials {
+	return c.Credentials
+}
+
+func GetHealthCheckConfig() common.HealthCheckConfig {
+	return c.HealthCheck
+}
+
+func Get(key string) interface{} {
+	return viper.Get(key)
+}
+
+func GetBool(key string) bool {
+	return viper.GetBool(key)
+}
+
+func GetInt(key string) int {
+	return viper.GetInt(key)
+}
+
+func GetString(key string) string {
+	return viper.GetString(key)
+}
+
+func GetStringMapString(key string) map[string]string {
+	return viper.GetStringMapString(key)
+}
+
+func GetStringMap(key string) map[string]interface{} {
+	return viper.GetStringMap(key)
+}
+
+func GetStringSlice(key string) []string {
+	return viper.GetStringSlice(key)
+}
+
+func IsSet(key string) bool {
+	return viper.IsSet(key)
+}
+
+func Set(key string, value interface{}) {
+	viper.Set(key, value)
+}
+
+type ProxyConfig struct {
+	HostPort string `mapstructure:"hostport"`
+}
+
+type AdminConfig struct {
+	HostPort string `mapstructure:"hostport"`
+}
+
+type ServerConfig struct {
+	Admin AdminConfig `mapstructure:"admin"`
+	Proxy ProxyConfig `mapstructure:"proxy"`
 }
 
 type PoolConfig struct {
-	Capacity int `json:"capacity"`
-}
-
-type SSLConfig struct {
-	Enable        bool   `json:"enable"`
-	SSLMode       string `json:"sslmode"`
-	SSLCert       string `json:"sslcert,omitempty"`
-	SSLKey        string `json:"sslkey,omitempty"`
-	SSLRootCA     string `json:"sslrootca,omitempty"`
-	SSLServerCert string `json:"sslservercert,omitempty"`
-	SSLServerKey  string `json:"sslserverkey,omitempty"`
-	SSLServerCA   string `json:"sslserverca,omitempty"`
-}
-
-type PGCredentials struct {
-	Username string            `json:"username"`
-	Password string            `json:"password,omitempty"`
-	Database string            `json:"database"`
-	SSL      SSLConfig         `json:"ssl"`
-	Options  map[string]string `json:"options"`
-}
-
-type Healthcheck struct {
-	Delay int    `json:"delay"`
-	Query string `json:"query"`
-}
-
-type Node struct {
-	HostPort     string            `json:"hostport"` //remote host:port
-	Metadata     map[string]string `json:"metadata"`
-	Healthy      bool              `json:"-"`
-	HCConnection net.Conn          `json:"-"`
-	Connection   net.Conn          `json:"-"`
-	Pool         NodePool          `json:"-"`
-	Stats        NodeStats         `json:"-"`
+	Capacity int `mapstructure:"capacity"`
 }
 
 type Adapter struct {
-	AdapterType string                 `json:"adaptertype"`
-	Metadata    map[string]interface{} `json:"metadata"`
+	AdapterType string                 `mapstructure:"adaptertype"`
+	Metadata    map[string]interface{} `mapstructure:"metadata"`
 }
 
 type Config struct {
-	Name             string          `json:"name"`
-	HostPort         string          `json:"hostport"`      //listen on host:port
-	AdminHostPort    string          `json:"adminhostport"` //listen on host:port
-	ReadAnnotation   string          `json:"readannotation"`
-	StartAnnotation  string          `json:"startannotation"`
-	FinishAnnotation string          `json:"finishannotation"`
-	Credentials      PGCredentials   `json:"credentials"`
-	Pool             PoolConfig      `json:"pool"`
-	Master           Node            `json:"master"`
-	Replicas         []Node          `json:"replicas"`
-	Adapters         []Adapter       `json:"adapters"`
-	Healthcheck      Healthcheck     `json:"healthcheck"`
-	Adapter          adapter.Adapter `json:"-"`
+	//Nodes       map[string]common.Node `mapstructure:"nodes"`
+	Server      ServerConfig             `mapstructure:"server"`
+	Pool        PoolConfig               `mapstructure:"pool"`
+	Nodes       map[string]common.Node   `mapstructure:"nodes"`
+	Credentials common.Credentials       `mapstructure:"credentials"`
+	HealthCheck common.HealthCheckConfig `mapstructure:"healthcheck"`
 }
 
-var Cfg Config
-
-func (c Config) Print() {
-	str, err := json.MarshalIndent(c, "", "  ")
-	if err != nil {
-		glog.Errorln(err)
-	}
-	glog.V(2).Infoln(string(str))
-
-}
-
-func (c Config) PrintNodeInfo() {
-	// Print the master node information.
-	glog.Infoln("[config] ---- Master Node Information ----")
-	glog.Infof("[config] master host = %s\n", c.Master.HostPort)
-
-	// Print the replica node information.
-	glog.Infoln("[config] ---- Replica Node Information ----")
-	for i, replica := range c.Replicas {
-		glog.Infof("[config] replica %d host = %s\n", i, replica.HostPort)
-	}
-}
-
-func PrintExample() {
-	var ds = make([]Adapter, 1)
-	ds[0] = Adapter{
-		AdapterType: "audit",
-	}
-	ds[0].Metadata = make(map[string]interface{})
-	ds[0].Metadata["Age"] = 6
-	ds[0].Metadata["Filepath"] = "/tmp/audit.log"
-	var pool = PoolConfig{
-		Capacity: 2}
-
-	var ms = Node{
-		HostPort: "master:5432"}
-
-	ms.Metadata = make(map[string]string)
-
-	var rs = make([]Node, 2)
-	rs[0] = Node{
-		HostPort: "replica1:5432"}
-	rs[0].Metadata = make(map[string]string)
-	rs[1] = Node{
-		HostPort: "replica2:5432"}
-	rs[1].Metadata = make(map[string]string)
-	var hs Healthcheck
-	hs.Delay = 10
-	hs.Query = "select now()"
-
-	c := Config{
-		Name:        "sampleconfig",
-		HostPort:    "localhost:5432",
-		Master:      ms,
-		Pool:        pool,
-		Replicas:    rs,
-		Healthcheck: hs,
-		Adapters:    ds}
-
-	str, err := json.MarshalIndent(c, "", "  ")
-	if err != nil {
-		glog.Errorln(err)
-	}
-	glog.V(2).Infoln(string(str))
+func SetConfigPath(path string) {
+	viper.SetConfigFile(path)
 }
 
 func ReadConfig() {
 
-	var filePath string
-	flag.StringVar(&filePath, "config", "", "a configuration file")
-	flag.Parse()
-	glog.V(2).Infoln("[config]" + filePath + " is the config path")
-	if filePath == "" {
-		glog.Errorln("-config command option required")
-		os.Exit(1)
-	}
+	err := viper.ReadInConfig()
+	log.Debugf("Using configuration file: %s", viper.ConfigFileUsed())
 
-	var err error
-	var byt []byte
-
-	if byt, err = ioutil.ReadFile(filePath); err != nil {
-		panic(err)
-	}
-
-	if err = json.Unmarshal(byt, &Cfg); err != nil {
-		panic(err)
-	}
-
-	if Cfg.ReadAnnotation == "" {
-		Cfg.ReadAnnotation = DEFAULT_READ_ANNOTATION
-		glog.Infof("[config] ReadAnnotation is not specified, using default: %s\n",
-			Cfg.ReadAnnotation)
-	}
-
-	if Cfg.StartAnnotation == "" {
-		Cfg.StartAnnotation = DEFAULT_START_ANNOTATION
-		glog.Infof("[config] StartAnnotation is not specified, using default: %s\n",
-			Cfg.StartAnnotation)
-	}
-
-	if Cfg.FinishAnnotation == "" {
-		Cfg.FinishAnnotation = DEFAULT_FINISH_ANNOTATION
-		glog.Infof("[config] FinishAnnotation is not specified, using default: %s\n",
-			Cfg.FinishAnnotation)
-	}
-
-	glog.V(2).Infof("[config] %s is the ReadAnnotation", Cfg.ReadAnnotation)
-	glog.V(2).Infof("[config] %s is the StartAnnotation", Cfg.StartAnnotation)
-	glog.V(2).Infof("[config] %s is the FinishAnnotation", Cfg.FinishAnnotation)
-
-}
-
-func (c *Config) SetupAdapters() {
-	glog.Infoln("---- Setup Adapters ----")
-
-	var ds []adapter.Decorator = make([]adapter.Decorator, 0)
-
-	for i := 0; i < len(c.Adapters); i++ {
-		glog.V(2).Infof("---- Setup '%q' Adapter ----", c.Adapters[i])
-		switch c.Adapters[i].AdapterType {
-		case "audit":
-
-			glog.V(2).Infof("---- added audit adapter")
-			ds = append(ds, adapter.Audit(c.Adapters[i].Metadata, log.New(os.Stdout, "[audit adapter]", 0)))
-		default:
-			glog.Errorf("Invalid adapter: %s", c.Adapters[i])
-		}
-	}
-
-	c.Adapter = adapter.ThisDecorate(adapter.MockAdapter{}, ds)
-}
-
-//eventually this would be a load balancer algorithm function
-func (c *Config) GetNextNode(writeCase bool) (*Node, error) {
-
-	var err error
-	var rCnt = len(c.Replicas)
-
-	if writeCase || rCnt == 0 {
-		if !c.Master.Healthy {
-			glog.V(2).Infoln("master is unhealthy!")
-			return &c.Master, errors.New("unhealthy master")
-		}
-		glog.V(2).Infoln("writeCase so using master as node...")
-		return &c.Master, err
-	}
-
-	var replicaHealthy = false
-
-	for i := 0; i < len(c.Replicas); i++ {
-		if c.Replicas[i].Healthy {
-			glog.V(2).Infoln("picked replica that was healthy")
-			replicaHealthy = true
-		}
-	}
-
-	if rCnt == 1 && replicaHealthy == false {
-		glog.V(2).Infoln("no replicas are healthy..using master")
-		if !c.Master.Healthy {
-			glog.V(2).Infoln("master is unhealthy!")
-			return &c.Master, errors.New("unhealthy master")
-		}
-		return &c.Master, err
-	}
-
-	//for now, use a simple random number generator to pick
-	//the next replica...I estimate that most replica counts will
-	//be typically very low, mostly less than 5, so this simple
-	//algorithm will probably suffice until we support
-	//multiple or plugable load balancing algorithms
-	//also, this algorithm doesn't include the master as a reader
-	//which someone might want
-
-	myrand := random(0, rCnt)
-	if !c.Replicas[myrand].Healthy {
-		glog.V(2).Infoln("random replica was not healthy")
-
-		//find first healthy replica
-		for i := 0; i < len(c.Replicas); i++ {
-			if c.Replicas[i].Healthy {
-				glog.V(2).Infoln("picked replica that was healthy")
-				return &c.Replicas[i], err
-			}
-		}
-
-		glog.V(2).Infoln("no healthy replica found")
-
-		if c.Master.Healthy {
-			glog.V(2).Infoln("master is healthy will use instead of replica!")
-			return &c.Master, err
-		}
-
-		glog.V(2).Infoln("master is unhealthy and no healthy replica found")
-
-		return &c.Master, errors.New("master and all replicas are unhealthy")
-	}
-
-	return &c.Replicas[myrand], err
-}
-
-//give us a random number between min and less than max
-func random(min, max int) int {
-	rand.Seed(time.Now().UTC().UnixNano())
-	return rand.Intn(max-min) + min
-}
-
-func checkError(err error) {
 	if err != nil {
-		glog.Fatalf("Fatal error:  %s", err.Error())
+		log.Error(err.Error())
 	}
-}
 
-func containsMapValues(m1 map[string]string, m2 map[string]string) bool {
-	for k, v := range m1 {
-		if m2[k] == v {
-			glog.Fatalf("%s found in m2\n", v)
-		} else {
-			glog.V(2).Infof("%s not found in m2\n", v)
-			return false
-		}
+	err = viper.Unmarshal(&c)
+
+	if err != nil {
+		log.Errorf("Error unmarshaling configuration file: %s", viper.ConfigFileUsed())
+		log.Fatalf(err.Error())
 	}
-	return true
-}
-
-func UpdateHealth(node *Node, status bool) {
-	var mutex = &sync.Mutex{}
-	mutex.Lock()
-	node.Healthy = status
-	mutex.Unlock()
 }

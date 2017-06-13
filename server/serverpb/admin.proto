@@ -1,0 +1,81 @@
+syntax="proto3";
+
+package crunchyproxy.server.serverpb;
+option go_package = "serverpb";
+
+import "google/api/annotations.proto";
+
+// NodeRequest requests a list of nodes.
+message NodeRequest {
+}
+
+// NodeResponse contains a list of nodes.
+message NodeResponse {
+	map<string, string> nodes = 1;
+}
+
+// PoolRequest requests a list of pools.
+message PoolRequest {
+}
+
+// PoolResponse contains a list of pools.
+message PoolResponse {
+	repeated string pools = 1;
+}
+
+message HealthRequest {
+
+}
+
+message HealthResponse {
+	map<string,bool> health = 1;
+}
+
+message StatisticsRequest {
+}
+
+message StatisticsResponse {
+	repeated string stats = 1;
+}
+
+// ShutdownRequest requests the server to shutdown.
+message ShutdownRequest {
+}
+
+// ShutdownResponse contains the the state of the proxy.
+message ShutdownResponse {
+	bool success = 1;
+}
+
+service Admin {
+	rpc Nodes(NodeRequest) returns (NodeResponse) {
+		option (google.api.http) = {
+			get: "/_admin/nodes"
+		};
+	}
+
+	rpc Pools(PoolRequest) returns (PoolResponse) {
+		option (google.api.http) = {
+			get: "/_admin/pools"
+		};
+	}
+
+	rpc Health(HealthRequest) returns (HealthResponse) {
+		option (google.api.http) = {
+			get: "/_admin/health"
+		};
+	}
+
+	rpc Statistics(StatisticsRequest) returns (StatisticsResponse) {
+		option (google.api.http) = {
+			get: "/_admin/stats"
+		};
+	}
+
+	rpc Shutdown(ShutdownRequest) returns (stream ShutdownResponse) {
+		option (google.api.http) = {
+			post: "/_admin/shutdown"
+			body: "*"
+		};
+	}
+}

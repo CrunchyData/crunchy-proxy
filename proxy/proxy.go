@@ -1,91 +1,124 @@
-/*
- Copyright 2017 Crunchy Data Solutions, Inc.
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-*/
-
 package proxy
 
 import (
-	"bytes"
-	"encoding/binary"
-	"github.com/crunchydata/crunchy-proxy/config"
-	"github.com/golang/glog"
 	"io"
 	"net"
+
+	"github.com/crunchydata/crunchy-proxy/common"
+	"github.com/crunchydata/crunchy-proxy/config"
+	"github.com/crunchydata/crunchy-proxy/connect"
+	"github.com/crunchydata/crunchy-proxy/pool"
+	"github.com/crunchydata/crunchy-proxy/protocol"
+	"github.com/crunchydata/crunchy-proxy/util/log"
 )
 
-func ListenAndServe() {
-	var listener net.Listener
-
-	tcpAddr, err := net.ResolveTCPAddr("tcp", config.Cfg.HostPort)
-	checkError(err)
-
-	listener, err = net.ListenTCP("tcp", tcpAddr)
-	checkError(err)
-
-	glog.Infof("[proxy] Listening on: %s", config.Cfg.HostPort)
-
-	handleListener(listener)
+type Proxy struct {
+	pools      map[string]*pool.Pool
+	writePools chan *pool.Pool
+	readPools  chan *pool.Pool
+	master     common.Node
+	clients    []net.Conn
 }
 
-func handleListener(listener net.Listener) {
-	for {
+func NewProxy() *Proxy {
+	p := &Proxy{}
 
-		conn, err := listener.Accept()
+	p.setupPools()
 
-		if err != nil {
-			continue
+	return p
+}
+
+func (p *Proxy) setupPools() {
+	nodes := config.GetNodes()
+	capacity := config.GetPoolCapacity()
+
+	/* Initialize pool structures */
+	numNodes := len(nodes)
+	p.pools = make(map[string]*pool.Pool, numNodes)
+	p.writePools = make(chan *pool.Pool, numNodes)
+	p.readPools = make(chan *pool.Pool, numNodes)
+
+	for name, node := range nodes {
+		/* Create Pool for Node */
+		newPool := pool.NewPool(capacity)
+		p.pools[name] = newPool
+
+		if node.Role == common.NODE_ROLE_MASTER {
+			p.writePools <- newPool
+		} else {
+			p.readPools <- newPool
 		}
 
-		go handleClientConnection(conn)
+		/* Create connections and add to pool. */
+		for i := 0; i < capacity; i++ {
+			log.Infof("Setting up connection #%d for node '%s'", i, name)
+			/* Connect and authenticate */
+			log.Infof("Connecting to node '%s' at %s...", name, node.HostPort)
+			c, err := connect.Connect(node.HostPort)
+
+			if err != nil {
+				log.Errorf("Error establishing connection to node '%s'", name)
+				log.Errorf("Error: %s", err.Error())
+			} else {
+				newPool.Add(c)
+			}
+		}
 	}
 }
 
-func getProtocol(startupMessage []byte) int32 {
-	var protocol int32
-
-	reader := bytes.NewReader(startupMessage[4:8])
-	binary.Read(reader, binary.BigEndian, &protocol)
-
-	return protocol
+// Get the next pool. If read is set to true, then a 'read-only' pool will be
+// returned. Otherwise, a 'read-write' pool will be returned.
+func (p *Proxy) getPool(read bool) *pool.Pool {
+	if read {
+		return <-p.readPools
+	}
+	return <-p.writePools
 }
 
-func handleClientConnection(client net.Conn) {
+// Return the pool. If read is 'true' then, the pool will be returned to the
+// 'read-only' collection of pools. Otherwise, it will be returned to the
+// 'read-write' collection of pools.
+func (p *Proxy) returnPool(pl *pool.Pool, read bool) {
+	if read {
+		p.readPools <- pl
+	} else {
+		p.writePools <- pl
+	}
+}
+
+// HandleConnection handle an incoming connection to the proxy
+func (p *Proxy) HandleConnection(client net.Conn) {
 	/* Get the client startup message. */
-	message, length, err := receive(client)
+	message, length, err := connect.Receive(client)
+
+	if err != nil {
+		log.Error("Error receiving startup message from client.")
+		log.Errorf("Error: %s", err.Error())
+	}
 
 	/* Get the protocol from the startup message.*/
-	protocol := getProtocol(message)
+	version := protocol.GetVersion(message)
 
-	if protocol == SSL_REQUEST_CODE {
-		message = make([]byte, 1)
+	/* Handle the case where the startup message was an SSL request. */
+	if version == protocol.SSLRequestCode {
+		sslResponse := protocol.NewMessageBuffer([]byte{})
 
 		/* Determine which SSL response to send to client. */
-		if config.Cfg.Credentials.SSL.Enable {
-			message[0] = SSL_ALLOWED
+		creds := config.GetCredentials()
+		if creds.SSL.Enable {
+			sslResponse.WriteByte(protocol.SSLAllowed)
 		} else {
-			message[0] = SSL_NOT_ALLOWED
+			sslResponse.WriteByte(protocol.SSLNotAllowed)
 		}
 
 		/*
 		 * Send the SSL response back to the client and wait for it to send the
 		 * regular startup packet.
 		 */
-		send(client, message)
+		connect.Send(client, sslResponse.Bytes())
 
 		/* Upgrade the client connection if required. */
-		client = upgradeServerConnection(client)
-		defer client.Close()
+		client = connect.UpgradeServerConnection(client)
 
 		/*
 		 * Re-read the startup message from the client. It is possible that the
@@ -93,254 +126,120 @@ func handleClientConnection(client net.Conn) {
 		 * close the connection. This is not an 'error' condition as this is an
 		 * expected behavior from a client.
 		 */
-		if message, length, err = receive(client); err == io.EOF {
-			glog.Infoln("[proxy] The client closed the connection.")
+		if message, length, err = connect.Receive(client); err == io.EOF {
+			log.Info("The client closed the connection.")
 			return
 		}
-
-		protocol = getProtocol(message)
 	}
 
-	/* Authenticate the client against the appropriate backend. */
-	authenticated := AuthenticateClient(client, message, length)
+	/* Verify that the client user and database are valid for this proxy */
+	if !connect.ValidateClient(message) {
+		pgError := protocol.Error{
+			Severity: protocol.ErrorSeverityFatal,
+			Code:     protocol.ErrorCodeInvalidAuthorizationSpecification,
+			Message:  "could not validate user/database",
+		}
 
-	/* If the client could not authenticate then go no further. */
-	if !authenticated {
-		glog.Errorln("[proxy] client could not authenticate and connect.")
+		connect.Send(client, pgError.GetMessage())
+		log.Error("Could not validate client")
 		return
 	}
 
-	masterBuf := make([]byte, 4096)
-	var writeLen int
-	var readLen int
-	var messageType byte
-	var writeCase, startCase, finishCase = false, false, false
-	var reqLen int
-	var nextNode *config.Node
-	var backendConn net.Conn
-	var poolIndex int
-	var statementBlock = false
+	/* Authenticate the client against the appropriate backend. */
+	log.Infof("Authenticating client: %s", client.RemoteAddr())
+	authenticated, err := connect.AuthenticateClient(client, message, length)
+
+	/* If the client could not authenticate then go no further. */
+	if authenticated {
+		log.Infof("Successfully authenticated client: %s", client.RemoteAddr())
+	} else {
+		log.Error("Client authentication failed.")
+		log.Errorf("Error: %s", err.Error())
+		return
+	}
+
+	/* Process the client messages for the life of the connection. */
+	var statementBlock bool
+	var cp *pool.Pool    // The connection pool in use
+	var backend net.Conn // The backend connection in use
+	var read bool
+	var end bool
 
 	for {
-		reqLen, err = client.Read(masterBuf)
+		message, length, err = connect.Receive(client)
 
 		if err != nil {
 			switch err {
 			case io.EOF:
-				glog.Infoln("[proxy] the client closed the connection.")
+				log.Infof("Client: %s - closed the connection.", client.RemoteAddr())
 			default:
-				glog.Errorf("[proxy] error reading from client conn: %s\n",
-					err.Error())
+				log.Errorf("Error reading from client connection %s", client.RemoteAddr())
+				log.Errorf("Error: %s", err.Error())
 			}
-			return
+			break
 		}
 
-		messageType = getMessageType(masterBuf)
+		messageType := protocol.GetMessageType(message)
 
-		// adapt inbound data
-		err = config.Cfg.Adapter.Do(masterBuf, reqLen)
-		if err != nil {
-			glog.Errorln("[proxy] error adapting inbound" + err.Error())
-		}
+		/*
+		 * If the message is a simple query, then it can have read/write
+		 * annotations attached to it. Therefore, we need to process it and
+		 * determine which backend we need to send it to.
+		 */
+		if messageType == protocol.QueryMessageType {
+			annotations := getAnnotations(message)
 
-		if messageType == TERMINATE_MESSAGE_TYPE {
-			glog.V(2).Infoln("termination msg received")
-			return
-		} else if messageType == QUERY_MESSAGE_TYPE {
-			poolIndex = -1
-
-			// Determine if the query has an annotation.
-			writeCase, startCase, finishCase = IsWriteAnno(
-				config.Cfg.ReadAnnotation,
-				config.Cfg.StartAnnotation,
-				config.Cfg.FinishAnnotation,
-				masterBuf)
-
-			glog.V(2).Infof("writeCase=%t startCase=%t finishCase=%t\n",
-				writeCase, startCase, finishCase)
-
-			if statementBlock {
-				// keep using the same node and connection
-				glog.V(2).Infof("[proxy] inside a statementBlock")
-			} else {
-				if startCase {
-					statementBlock = true
-				}
-
-				nextNode, err = config.Cfg.GetNextNode(writeCase)
-
-				if err != nil {
-					glog.Errorln(err.Error())
-					return
-				}
-
-				//get pool index from pool channel
-				poolIndex = <-nextNode.Pool.Channel
-
-				glog.V(2).Infof("query sending to %s pool Index=%d\n", nextNode.HostPort, poolIndex)
-				backendConn = nextNode.Pool.Connections[poolIndex]
-			}
-
-			if finishCase {
+			if annotations[StartAnnotation] {
+				statementBlock = true
+			} else if annotations[EndAnnotation] {
+				end = true
 				statementBlock = false
-				glog.V(2).Infof("outside a statementBlock")
 			}
 
-			nextNode.Stats.Queries = nextNode.Stats.Queries + 1
+			read = annotations[ReadAnnotation]
+		}
 
-			var clientErr error
-			clientErr, err = processBackend(client, backendConn, masterBuf, reqLen)
-			if clientErr != nil {
-				glog.Errorln(clientErr.Error())
-				glog.Errorln("[proxy] client write error..giving up on statement")
-				return
-			}
+		/*
+		 * If not in a statement block or if the pool or backend are not already
+		 * set, then fetch a new backend to receive the message.
+		 */
+		if !statementBlock && !end || cp == nil || backend == nil {
+			cp = p.getPool(read)
+			backend = cp.Next()
+			p.returnPool(cp, read)
+		}
 
-			if err != nil {
-				glog.Errorln(err.Error())
-				glog.Errorln("[proxy] backend write error..retrying...")
+		/* Relay message to client and backend */
+		if _, err = connect.Send(backend, message[:length]); err != nil {
+			log.Debugf("Error sending message to backend %s", backend.RemoteAddr())
+			log.Debugf("Error: %s", err.Error())
+		}
 
-				//retry logic
-				//mark node as unhealthy
-				config.UpdateHealth(nextNode, false)
+		if message, length, err = connect.Receive(backend); err != nil {
+			log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
+			log.Debugf("Error: %s", err.Error())
+		}
 
-				// return connection index to pool
-				nextNode.Pool.Channel <- poolIndex
+		if _, err = connect.Send(client, message[:length]); err != nil {
+			log.Debugf("Error sending response to client %s", client.RemoteAddr())
+			log.Debugf("Error: %s", err.Error())
+		}
 
-				//get new connection on master
-				nextNode, err = config.Cfg.GetNextNode(true)
-				poolIndex = <-nextNode.Pool.Channel
-				backendConn = nextNode.Pool.Connections[poolIndex]
-
-				clientErr, err = processBackend(client, backendConn, masterBuf, reqLen)
-
-				if clientErr != nil {
-					glog.Errorln(clientErr.Error())
-					glog.Errorln("[proxy] client write erroron retry..giving up on statement")
-
-					return
-				}
-
-				if err != nil {
-					glog.Errorln("retry of query also failed, giving up on this statement...")
-
-					// return connection to pool
-					nextNode.Pool.Channel <- poolIndex
-					config.UpdateHealth(nextNode, false)
-					writeLen, err = client.Write(GetTerminateMessage())
-
-					if err != nil {
-						glog.Errorln(err.Error())
-					}
-
-					return
-				}
-			}
-
+		/*
+		 * If at the end of a statement block or not part of statment block,
+		 * then return the connection to the pool.
+		 */
+		if !statementBlock {
 			/*
-			 * TODO: This could probably be cleaned up/refactored such that
-			 * multiple calls to return the node to the pool is not necessary.
+			 * Toggle 'end' such that a new connection will be fetched on the
+			 * next query.
 			 */
-			if poolIndex != -1 {
-				nextNode.Pool.Channel <- poolIndex
+			if end {
+				end = false
 			}
 
-		} else {
-
-			glog.V(2).Infoln("XXXX msgType here is " + string(messageType))
-
-			writeLen, err = config.Cfg.Master.Connection.Write(masterBuf[:reqLen])
-			readLen, err = config.Cfg.Master.Connection.Read(masterBuf)
-
-			if err != nil {
-				glog.Errorln("master WriteRead error:" + err.Error())
-			}
-
-			messageType = getMessageType(masterBuf)
-
-			//write to client only the master response
-			writeLen, err = client.Write(masterBuf[:readLen])
-
-			if err != nil {
-				glog.Errorln("[proxy] closing client conn" + err.Error())
-				return
-			}
-
-			glog.V(2).Infof("[proxy] wrote3 to pg client %d\n", writeLen)
-		}
-
-	}
-	glog.V(2).Infoln("[proxy] closing client conn")
-}
-
-func checkError(err error) {
-	if err != nil {
-		glog.Fatalf("Fatal	error:	%s", err.Error())
-	}
-}
-
-func getMessageTypeAndLength(buf []byte) (string, int) {
-	var msgLen int32
-
-	// Read the message length.
-	reader := bytes.NewReader(buf[1:5])
-	binary.Read(reader, binary.BigEndian, &msgLen)
-
-	glog.V(2).Infof("[protocol] %d msgLen\n", msgLen)
-
-	return string(buf[0]), int(msgLen)
-}
-
-func processBackend(client net.Conn, backendConn net.Conn, masterBuf []byte, reqLen int) (error, error) {
-	var writeLen, msgLen, readLen int
-	var msgType string
-	var err error
-	var clienterr error
-
-	writeLen, err = backendConn.Write(masterBuf[:reqLen])
-	glog.V(2).Infof("wrote outbuf reqLen=%d writeLen=%d\n", reqLen, writeLen)
-	if err != nil {
-		glog.Errorln("[proxy] error writing to backend " + err.Error())
-		return clienterr, err
-	}
-
-	for {
-		readLen, err = backendConn.Read(masterBuf)
-		if err != nil {
-			glog.Errorln("[proxy] error reading from backend " + err.Error())
-			return clienterr, err
-		}
-		glog.V(6).Infof("read from backend..%d\n", readLen)
-
-		for startPos := 0; startPos < readLen; {
-			msgType, msgLen = getMessageTypeAndLength(masterBuf[startPos:])
-
-			msgLen = msgLen + 1 // add 1 for the message first byte
-
-			//adapt msgs going back to client
-			err = config.Cfg.Adapter.Do(masterBuf, readLen)
-
-			if err != nil {
-				glog.Errorln("[proxy] error adapting outbound" + err.Error())
-			}
-
-			writeLen, clienterr = client.Write(masterBuf[startPos : msgLen+startPos])
-			if clienterr != nil {
-				glog.Errorln("[proxy] error writing to client " + err.Error())
-				return clienterr, err
-			}
-
-			glog.V(3).Infof("[proxy] wrote1 to pg client %d\n", writeLen)
-
-			startPos = startPos + msgLen
-
-			glog.V(3).Infof("[proxy] startPos is now %d\n", startPos)
-		}
-		if msgType == "Z" {
-			glog.V(2).Infof("[proxy] Z msg found")
-			return clienterr, err
+			/* Return the backend to the pool it belongs to. */
+			cp.Return(backend)
 		}
 	}
-
-	return clienterr, err
 }
