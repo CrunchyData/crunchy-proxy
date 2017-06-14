@@ -18,6 +18,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"strings"
 )
 
 /* PostgreSQL message length offset constants. */
@@ -99,7 +100,8 @@ func (message *MessageBuffer) ReadBytes(count int) ([]byte, error) {
 // This function will read and return the next Null terminated string from the
 // message buffer.
 func (message *MessageBuffer) ReadString() (string, error) {
-	return message.buffer.ReadString(0x00)
+	str, err := message.buffer.ReadString(0x00)
+	return strings.Trim(str, "\x00"), err
 }
 
 // WriteByte will write the specified byte to the message buffer.
