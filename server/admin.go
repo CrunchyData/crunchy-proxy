@@ -155,13 +155,13 @@ func getDBConnection(node common.Node) (*sql.DB, error) {
 		connectionString += fmt.Sprintf(" %s=%s", key, value)
 	}
 
-	log.Debugf("healthcheck: Opening connection with parameters: %s\n",
+	log.Debugf("healthcheck: Opening connection with parameters: %s",
 		connectionString)
 
 	dbConn, err := sql.Open("postgres", connectionString)
 
 	if err != nil {
-		log.Errorf("healthcheck: Error creating connection : %s\n", err.Error())
+		log.Errorf("healthcheck: Error creating connection : %s", err.Error())
 	}
 
 	return dbConn, err
