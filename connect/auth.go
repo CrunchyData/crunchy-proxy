@@ -92,14 +92,6 @@ func handleAuthClearText(connection net.Conn) bool {
 func AuthenticateClient(client net.Conn, message []byte, length int) (bool, error) {
 	var err error
 
-	/*
-	 * Validate that the client username and database are the same as that
-	 * which is configured for the proxy connections.
-	 *
-	 * If the the client cannot be validated then send an appropriate PG error
-	 * message back to the client.
-	 */
-
 	nodes := config.GetNodes()
 
 	node := nodes["master"]
@@ -198,12 +190,18 @@ func ValidateClient(message []byte) bool {
 
 	startup.Seek(8) // Seek past the message length and protocol version.
 
-	for param, err := startup.ReadString(); err != io.EOF; param, err = startup.ReadString() {
+	for {
+		param, err := startup.ReadString()
+
+		if err == io.EOF || param == "\x00" {
+			break
+		}
+
 		switch param {
 		case "user":
-			clientUser, _ = startup.ReadString()
+			clientUser, err = startup.ReadString()
 		case "database":
-			clientDatabase, _ = startup.ReadString()
+			clientDatabase, err = startup.ReadString()
 		}
 	}
 
