@@ -15,15 +15,11 @@ postgresql_config_options:
 # Replication Options
   - option: "wal_level"
     value: "hot_standby"
-  - option: "archive_mode"
-    value: "on"
-  - option: "archive_command"
-    value: "cd ."
   - option: "max_wal_senders"
-    value: "1"
+    value: "3"
+  # Replica options - ignored by master
   - option: "hot_standby"
-    value: "on"
-
+    value: on
 
 postgresql_hba_entries:
   # Non-SSL entries
