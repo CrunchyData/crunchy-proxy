@@ -132,7 +132,13 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 		}
 	}
 
-	/* Verify that the client user and database are valid for this proxy */
+	/*
+	 * Validate that the client username and database are the same as that
+	 * which is configured for the proxy connections.
+	 *
+	 * If the the client cannot be validated then send an appropriate PG error
+	 * message back to the client.
+	 */
 	if !connect.ValidateClient(message) {
 		pgError := protocol.Error{
 			Severity: protocol.ErrorSeverityFatal,
@@ -166,6 +172,8 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 	var end bool
 
 	for {
+		var done bool // for message processing loop.
+
 		message, length, err = connect.Receive(client)
 
 		if err != nil {
@@ -215,14 +223,38 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			log.Debugf("Error: %s", err.Error())
 		}
 
-		if message, length, err = connect.Receive(backend); err != nil {
-			log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
-			log.Debugf("Error: %s", err.Error())
-		}
+		/* */
+		for !done {
+			if message, length, err = connect.Receive(backend); err != nil {
+				log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
+				log.Debugf("Error: %s", err.Error())
+				done = true
+			}
 
-		if _, err = connect.Send(client, message[:length]); err != nil {
-			log.Debugf("Error sending response to client %s", client.RemoteAddr())
-			log.Debugf("Error: %s", err.Error())
+			messageLength := protocol.GetMessageLength(message)
+
+			/*
+			 * Examine all of the messages in the buffer and determine if any of
+			 * them are a ReadyForQuery message.
+			 */
+			for start := 0; start < length; {
+				messageType := protocol.GetMessageType(message[start:])
+				messageLength = protocol.GetMessageLength(message[start:])
+
+				done = messageType == protocol.ReadyForQueryMessageType
+
+				/*
+				 * Calculate the next start position, add '1' to the message
+				 * length to account for the message type.
+				 */
+				start = start + int(messageLength) + 1
+			}
+
+			if _, err = connect.Send(client, message[:length]); err != nil {
+				log.Debugf("Error sending response to client %s", client.RemoteAddr())
+				log.Debugf("Error: %s", err.Error())
+				done = true
+			}
 		}
 
 		/*
