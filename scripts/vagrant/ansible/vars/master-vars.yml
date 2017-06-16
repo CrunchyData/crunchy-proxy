@@ -34,7 +34,7 @@ postgresql_hba_entries:
     database: replication
     user: rep
     address: "{{ replica_ip }}/32"
-    method: md5
+    method: trust
     state: present
 
   # SSL entries

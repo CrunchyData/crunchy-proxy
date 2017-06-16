@@ -27,4 +27,4 @@
 
   # Setup Replication User
   - name: "Create Replication User"
-    command: "psql -U postgres -c \"CREATE USER {{postgresql_replication_user}} REPLICATION LOGIN CONNECTION LIMIT 1 ENCRYPTED PASSWORD '{{postgresql_replication_user_passwd}}';\""
+    command: "psql -U postgres -c \"CREATE USER {{postgresql_replication_user}} REPLICATION LOGIN CONNECTION LIMIT 5 ENCRYPTED PASSWORD '{{postgresql_replication_user_passwd}}';\""
