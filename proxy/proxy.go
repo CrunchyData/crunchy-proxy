@@ -208,73 +208,76 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			}
 
 			read = annotations[ReadAnnotation]
-		}
-
-		/*
-		 * If not in a statement block or if the pool or backend are not already
-		 * set, then fetch a new backend to receive the message.
-		 */
-		if !statementBlock && !end || cp == nil || backend == nil {
-			cp = p.getPool(read)
-			backend = cp.Next()
-			p.returnPool(cp, read)
-		}
-
-		/* Relay message to client and backend */
-		if _, err = connect.Send(backend, message[:length]); err != nil {
-			log.Debugf("Error sending message to backend %s", backend.RemoteAddr())
-			log.Debugf("Error: %s", err.Error())
-		}
-
-		/* */
-		for !done {
-			if message, length, err = connect.Receive(backend); err != nil {
-				log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
-				log.Debugf("Error: %s", err.Error())
-				done = true
-			}
-
-			messageLength := protocol.GetMessageLength(message)
 
 			/*
-			 * Examine all of the messages in the buffer and determine if any of
-			 * them are a ReadyForQuery message.
+			 * If not in a statement block or if the pool or backend are not already
+			 * set, then fetch a new backend to receive the message.
 			 */
-			for start := 0; start < length; {
-				messageType := protocol.GetMessageType(message[start:])
-				messageLength = protocol.GetMessageLength(message[start:])
+			if !statementBlock && !end || cp == nil || backend == nil {
+				cp = p.getPool(read)
+				backend = cp.Next()
+				p.returnPool(cp, read)
+			}
 
-				done = messageType == protocol.ReadyForQueryMessageType
+			/* Relay message to client and backend */
+			if _, err = connect.Send(backend, message[:length]); err != nil {
+				log.Debugf("Error sending message to backend %s", backend.RemoteAddr())
+				log.Debugf("Error: %s", err.Error())
+			}
+
+			/*
+			 * Continue to read from the backend until a 'ReadyForQuery' message is
+			 * is found.
+			 */
+			for !done {
+				if message, length, err = connect.Receive(backend); err != nil {
+					log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
+					log.Debugf("Error: %s", err.Error())
+					done = true
+				}
+
+				messageType := protocol.GetMessageType(message[:length])
 
 				/*
-				 * Calculate the next start position, add '1' to the message
-				 * length to account for the message type.
+				 * Examine all of the messages in the buffer and determine if any of
+				 * them are a ReadyForQuery message.
 				 */
-				start = start + int(messageLength) + 1
+				for start := 0; start < length; {
+					messageType = protocol.GetMessageType(message[start:])
+					messageLength := protocol.GetMessageLength(message[start:])
+
+					/*
+					 * Calculate the next start position, add '1' to the message
+					 * length to account for the message type.
+					 */
+					start = (start + int(messageLength) + 1)
+				}
+
+				if _, err = connect.Send(client, message[:length]); err != nil {
+					log.Debugf("Error sending response to client %s", client.RemoteAddr())
+					log.Debugf("Error: %s", err.Error())
+					done = true
+				}
+
+				done = (messageType == protocol.ReadyForQueryMessageType)
 			}
 
-			if _, err = connect.Send(client, message[:length]); err != nil {
-				log.Debugf("Error sending response to client %s", client.RemoteAddr())
-				log.Debugf("Error: %s", err.Error())
-				done = true
-			}
-		}
-
-		/*
-		 * If at the end of a statement block or not part of statment block,
-		 * then return the connection to the pool.
-		 */
-		if !statementBlock {
 			/*
-			 * Toggle 'end' such that a new connection will be fetched on the
-			 * next query.
+			 * If at the end of a statement block or not part of statment block,
+			 * then return the connection to the pool.
 			 */
-			if end {
-				end = false
-			}
+			if !statementBlock {
+				/*
+				 * Toggle 'end' such that a new connection will be fetched on the
+				 * next query.
+				 */
+				if end {
+					end = false
+				}
 
-			/* Return the backend to the pool it belongs to. */
-			cp.Return(backend)
+				/* Return the backend to the pool it belongs to. */
+				cp.Return(backend)
+			}
 		}
 	}
 }
