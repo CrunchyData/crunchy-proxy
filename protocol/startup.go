@@ -29,21 +29,11 @@ func CreateStartupMessage(username string, database string, options map[string]s
 	message.WriteString("database")
 	message.WriteString(database)
 
-	/* Set the 'client_encoding' parameter. */
-	message.WriteString("client_encoding")
-	message.WriteString("UTF8")
-
-	/* Set the 'datestyle' parameter. */
-	message.WriteString("datestyle")
-	message.WriteString("ISO, MDY")
-
-	/* Set the 'application_name' parameter.*/
-	message.WriteString("application_name")
-	message.WriteString("proxypool")
-
-	/* Set the 'extra_float_digits' parameter. */
-	message.WriteString("extra_float_digits")
-	message.WriteString("2")
+	/* Set the remaining options as specified. */
+	for option, value := range options {
+		message.WriteString(option)
+		message.WriteString(value)
+	}
 
 	/* The message should end with a NULL byte. */
 	message.WriteByte(0x00)
