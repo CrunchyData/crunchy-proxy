@@ -194,7 +194,10 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 		 * annotations attached to it. Therefore, we need to process it and
 		 * determine which backend we need to send it to.
 		 */
-		if messageType == protocol.QueryMessageType {
+		if messageType == protocol.TerminateMessageType {
+			log.Infof("Terminate Message Received: %s", client.RemoteAddr())
+			return
+		} else if messageType == protocol.QueryMessageType {
 			annotations := getAnnotations(message)
 
 			if annotations[StartAnnotation] {
