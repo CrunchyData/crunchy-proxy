@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 # Copyright 2016 Crunchy Data Solutions, Inc.
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,18 +19,23 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export PGPASSFILE=$DIR/pgpass
 
 PORT=5432
-HOST=localhost
+PROXY_HOST=localhost
+MASTER_HOST=master.crunchy.lab
 
 echo "refresh the proxydb database.."
-psql -h $HOST -p $PORT -U postgres -c 'drop database proxydb;' postgres
-psql -h $HOST -p $PORT -U postgres -c 'create database proxydb;' postgres
-pgbench -h localhost -p 12000 -U postgres -i proxydb
+#psql -h $MASTER_HOST -p $PORT -U postgres -c 'drop database proxydb;' postgres
+#psql -h $MASTER_HOST -p $PORT -U postgres -c 'create database proxydb;' postgres
+pgbench -h $MASTER_HOST -p $PORT  -U postgres -i proxydb
 
 echo "start the load test..."
 
-pgbench -h $HOST -p $PORT \
-	-U postgres -f $DIR/load-test.sql \
-	-c 9 \
-	-t 500 proxydb
+pgbench \
+	-h $PROXY_HOST \
+	-p $PORT \
+	-U postgres \
+	-f $DIR/simple-load-test.sql \
+	-c 10 \
+	--no-vacuum \
+	-t 10000 proxydb
 
 echo "load test ends."
