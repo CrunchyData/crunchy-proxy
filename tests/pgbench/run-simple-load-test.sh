@@ -22,9 +22,7 @@ PORT=5432
 PROXY_HOST=localhost
 MASTER_HOST=master.crunchy.lab
 
-echo "refresh the proxydb database.."
-#psql -h $MASTER_HOST -p $PORT -U postgres -c 'drop database proxydb;' postgres
-#psql -h $MASTER_HOST -p $PORT -U postgres -c 'create database proxydb;' postgres
+echo "Initialize the 'proxydb' database..."
 pgbench -h $MASTER_HOST -p $PORT  -U postgres -i proxydb
 
 echo "start the load test..."
