@@ -1,15 +1,8 @@
-hash: 2a5b16f8563b04bc0612625fcdb53da48555823943ecc0d88da4fefd767c7cdb
-updated: 2017-06-13T17:44:03.881931728-04:00
+hash: 42b00ced64c79f084618beca01d954a1686d103bdfef37a9de6630f955729019
+updated: 2017-06-23T14:28:50.748969094-04:00
 imports:
-- name: github.com/ant0ine/go-json-rest
-  version: 4602b00d2caab423578a3094c68137dcc1eb2051
-  subpackages:
-  - rest
-  - rest/trie
 - name: github.com/fsnotify/fsnotify
   version: 4da3e2cfbabc9f751898f250b49f2439785783a1
-- name: github.com/golang/glog
-  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/protobuf
   version: 4f95b0d3eab845462f9b0ca5ad21dea8093be211
   subpackages:

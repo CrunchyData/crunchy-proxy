@@ -10,7 +10,7 @@ import:
   subpackages:
   - googleapis/api/annotations
 - package: google.golang.org/grpc
-  version: ^1.3.0
+  version: =1.4.0
 - package: github.com/spf13/cobra
 
 ignore:
