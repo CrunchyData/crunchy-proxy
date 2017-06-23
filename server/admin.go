@@ -77,6 +77,8 @@ func (s *AdminServer) Health(ctx context.Context, req *pb.HealthRequest) (*pb.He
 func (s *AdminServer) Statistics(context.Context, *pb.StatisticsRequest) (*pb.StatisticsResponse, error) {
 	var response pb.StatisticsResponse
 
+	response.Queries = s.server.proxy.Stats()
+
 	return &response, nil
 }
 

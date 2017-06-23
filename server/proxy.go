@@ -10,6 +10,7 @@ import (
 type ProxyServer struct {
 	ch       chan bool
 	server   *Server
+	p        *proxy.Proxy
 	listener net.Listener
 }
 
@@ -26,7 +27,7 @@ func (s *ProxyServer) Serve(l net.Listener) error {
 	defer s.server.waitGroup.Done()
 	s.listener = l
 
-	p := proxy.NewProxy()
+	s.p = proxy.NewProxy()
 
 	for {
 
@@ -42,8 +43,12 @@ func (s *ProxyServer) Serve(l net.Listener) error {
 			continue
 		}
 
-		go p.HandleConnection(conn)
+		go s.p.HandleConnection(conn)
 	}
+}
+
+func (s *ProxyServer) Stats() map[string]int32 {
+	return s.p.Stats
 }
 
 func (s *ProxyServer) Stop() {

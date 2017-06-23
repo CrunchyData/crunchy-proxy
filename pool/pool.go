@@ -6,12 +6,14 @@ import (
 
 type Pool struct {
 	connections chan net.Conn
+	Name        string
 	Capacity    int
 }
 
-func NewPool(capacity int) *Pool {
+func NewPool(name string, capacity int) *Pool {
 	return &Pool{
 		connections: make(chan net.Conn, capacity),
+		Name:        name,
 		Capacity:    capacity,
 	}
 }

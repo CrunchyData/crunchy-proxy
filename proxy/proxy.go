@@ -3,6 +3,7 @@ package proxy
 import (
 	"io"
 	"net"
+	"sync"
 
 	"github.com/crunchydata/crunchy-proxy/common"
 	"github.com/crunchydata/crunchy-proxy/config"
@@ -13,15 +14,19 @@ import (
 )
 
 type Proxy struct {
-	pools      map[string]*pool.Pool
 	writePools chan *pool.Pool
 	readPools  chan *pool.Pool
 	master     common.Node
 	clients    []net.Conn
+	Stats      map[string]int32
+	lock       *sync.Mutex
 }
 
 func NewProxy() *Proxy {
-	p := &Proxy{}
+	p := &Proxy{
+		Stats: make(map[string]int32),
+		lock:  &sync.Mutex{},
+	}
 
 	p.setupPools()
 
@@ -34,14 +39,12 @@ func (p *Proxy) setupPools() {
 
 	/* Initialize pool structures */
 	numNodes := len(nodes)
-	p.pools = make(map[string]*pool.Pool, numNodes)
 	p.writePools = make(chan *pool.Pool, numNodes)
 	p.readPools = make(chan *pool.Pool, numNodes)
 
 	for name, node := range nodes {
 		/* Create Pool for Node */
-		newPool := pool.NewPool(capacity)
-		p.pools[name] = newPool
+		newPool := pool.NewPool(name, capacity)
 
 		if node.Role == common.NODE_ROLE_MASTER {
 			p.writePools <- newPool
@@ -170,6 +173,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 	var backend net.Conn // The backend connection in use
 	var read bool
 	var end bool
+	var nodeName string
 
 	for {
 		var done bool // for message processing loop.
@@ -216,8 +220,14 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			if !statementBlock && !end || cp == nil || backend == nil {
 				cp = p.getPool(read)
 				backend = cp.Next()
+				nodeName = cp.Name
 				p.returnPool(cp, read)
 			}
+
+			/* Update the query count for the node being used. */
+			p.lock.Lock()
+			p.Stats[nodeName] += 1
+			p.lock.Unlock()
 
 			/* Relay message to client and backend */
 			if _, err = connect.Send(backend, message[:length]); err != nil {

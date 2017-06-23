@@ -35,7 +35,7 @@ message StatisticsRequest {
 }
 
 message StatisticsResponse {
-	repeated string stats = 1;
+	map<string,int32> queries = 1;
 }
 
 // ShutdownRequest requests the server to shutdown.
