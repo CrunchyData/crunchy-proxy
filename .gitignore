@@ -1,5 +1,9 @@
+# ignore build/dependency related directories
 vendor
+build
+dist
 
+# ignore test/dev environment related directories
 .docker
 .vagrant
 
