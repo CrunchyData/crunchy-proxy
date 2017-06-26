@@ -155,16 +155,16 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 	}
 
 	/* Authenticate the client against the appropriate backend. */
-	log.Infof("Authenticating client: %s", client.RemoteAddr())
+	log.Infof("Client: %s - authenticating", client.RemoteAddr())
 	authenticated, err := connect.AuthenticateClient(client, message, length)
 
 	/* If the client could not authenticate then go no further. */
-	if authenticated {
-		log.Infof("Successfully authenticated client: %s", client.RemoteAddr())
-	} else {
-		log.Error("Client authentication failed.")
+	if !authenticated {
+		log.Errorf("Client: %s - authentication failed", client.RemoteAddr())
 		log.Errorf("Error: %s", err.Error())
 		return
+	} else {
+		log.Debugf("Client: %s - authentication successful", client.RemoteAddr())
 	}
 
 	/* Process the client messages for the life of the connection. */
@@ -183,7 +183,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 		if err != nil {
 			switch err {
 			case io.EOF:
-				log.Infof("Client: %s - closed the connection.", client.RemoteAddr())
+				log.Infof("Client: %s - closed the connection", client.RemoteAddr())
 			default:
 				log.Errorf("Error reading from client connection %s", client.RemoteAddr())
 				log.Errorf("Error: %s", err.Error())
@@ -199,7 +199,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 		 * determine which backend we need to send it to.
 		 */
 		if messageType == protocol.TerminateMessageType {
-			log.Infof("Terminate Message Received: %s", client.RemoteAddr())
+			log.Infof("Client: %s - disconnected", client.RemoteAddr())
 			return
 		} else if messageType == protocol.QueryMessageType {
 			annotations := getAnnotations(message)
