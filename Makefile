@@ -14,7 +14,7 @@
 
 .PHONY: all build clean docs resolve install release run default
 
-all: clean resolve build docs install
+all: clean resolve build
 
 RELEASE_VERSION := v1.0.0beta
 PROJECT_DIR := $(shell pwd)
