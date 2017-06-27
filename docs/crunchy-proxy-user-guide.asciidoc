@@ -1,6 +1,6 @@
 = User Guide - Crunchy Proxy
 Crunchy Data Solutions, Inc.
-v0.0.1, {docdate}
+v1.0.0, {docdate}
 :title-logo-image: image:crunchy_logo.png["CrunchyData Logo",align="center",scaledwidth="80%"]
 
 == Releases
@@ -11,72 +11,225 @@ github repo site in the Releases tab.
 A Docker image is also found in the DockerHub at
 https://hub.docker.com/r/crunchydata/crunchy-proxy/
 
-== Command Usage
+== Usage
 
-The command syntax of the proxy is as follows:
+=== Start
+
+Start an instance of the proxy.
 
 ....
-crunchyproxy -config=config.json
-....
-
-The only command option is the *-config* flag.  This option specifies
-the proxy configuration to use.  A sample configuration file
-is located at https://github.com/crunchydata/crunchy-proxy/config.json
-
-The proxy uses link:https://godoc.org/github.com/golang/glog[glog] for logging, to see the log output, run the proxy with this command:
-....
-crunchyproxy -config=config.json -logtostderr=true
+$> crunchy-proxy start
 ....
 
-Increase the logging level this way:
+Options:
+
+[options="header,footer"]
+|===
+| Option | Default | Description 
+| --config | /etc/crunchy-proxy/config.yaml | the path to the proxy's
+configuration file
+| --background | false | run the proxy in the background
+| --log-level | info | the logging level
+|===
+
+=== Stop
+
+Stop an instance of the proxy. This command can take optional parameters to
+specify the host and port of the target proxy to stop. 
+
 ....
-crunchyproxy -config=config.json -logtostderr=true -v 2
+$> crunchy-proxy stop
 ....
 
-Normal execution does not produce any logging:
+Options:
+
+[options="header,footer"]
+|===
+| Option | Default | Description
+| --host | localhost | the host address of the proxy's admin server
+| --port | 8000 | the host port of the proxy's admin server
+|===
+
+=== Health
+
+Show the health of the nodes configured for an instance of the proxy. The
+command can take optional paramters to specify the host and port of the target
+proxy.
+
 ....
-crunchyproxy -config=config.json
+$> crunchy-proxy health
 ....
 
+Options:
+
+[options="header,footer"]
+|===
+| Option | Default | Description
+| --host | localhost | the host address of the proxy's admin server
+| --port | 8000 | the host port of the proxy's admin server
+| --format | plain | the format of the results of the command. Valid formats
+are 'plain' and 'json'
+|===
+
+=== Node
+
+Show information about the nodes that are configured for an instance of the
+proxy. This command can take optional parameters to specify the host and port
+of the target proxy.
+
+....
+$> crunchy-proxy node
+....
+
+[options="header,footer"]
+|===
+| Option | Default | Description
+| --host | localhost | the host address of the proxy's admin server
+| --port | 8000 | the host port of the proxy's admin server
+| --format | plain | the format of the results. Valid formats are 'plain' and
+'json'
+|===
+
+=== Stats
+
+Show statistics information about the proxy. This command can take optional
+parameters to specify the host and port of the target proxy.
+
+....
+$> crunchy-proxy stats
+....
+
+[options="header,footer"]
+|===
+|  Option | Default | Description
+| --host | localhost | the host address of the proxy's admin server
+| --port | 8000 | the host port of the proxy's admin server
+| --format | plain | the format of the results. Valid formats are 'plain' and
+'json'
+|===
+
+=== Version
+
+Show version information about the proxy. This command can take optional parameters to specify the host and port of the target proxy.
+
+....
+$> crunchy-proxy version
+....
+
+[options="header,footer"]
+|===
+|  Option | Default | Description
+| --host | localhost | the host address of the proxy's admin server
+| --port | 8000 | the host port of the proxy's admin server
+|===
 
 == Configuration
 
 The proxy configuration is controlled by a single configuration file which
-is written in JSON format.
+is written in YAML format.
 
-The JSON file is read at startup and is currently not reloaded after
+The YAML file is read at startup and is currently not reloaded after
 execution starts.
 
-The JSON parameters include:
-[width="90%",cols="30,40,30", frame="topbot",options="header,footer"]
-|======================
-|Parameter | Purpose | Example
-|Name        | a name you want to give the configuration | "myconfig"
-|HostPort        | the proxy host:port to listen to| "localhost:5432"
-|AdminHostPort        |the proxy admin host:port | "localhost:10000"
-|ReadAnnotation        |the string to use for a read annotation | "read" is the default if not specified
-|StartAnnotation        |the string to use for a start annotation | "start" is the default if not specified
-|FinishAnnotation        |the string to use for a finish annotation | "finish" is the default if not specified
-|heathcheck.delay        |seconds to delay between checks| 60
-|heathcheck.query        |SQL to use for check | "select now()"
-|pool.enabled        |enable connection pooling | true
-|pool.capacity        |size of pools | 2
-|credentials.username        |postgres username for pool connections | "postgres"
-|credentials.password        |postgres password for pool connections | "password"
-|credentials.database        |postgres database for pool connections | "postgres"
-|adapters|adaptertype| "audit"
-|adapters|metadata| map[string] interface{} which allows an abstract map of metadata to be defined for an adapter
-|Master.HostPort| the master backend hostname:port| "127.0.0.1:12000"
-|Replicas.HostPort| the replica backend hostname:port| "127.0.0.1:12002"
-|======================
+Configuration sections:
+
+=== server
+
+[options="header,footer"]
+|===
+| Parameter | Description
+| proxy:hostport | the host:port that the proxy server will listen to
+| admin:hostport | the host:port that the proxy admin server will listen to
+|===
+
+==== Example
+
+....
+server:
+  proxy:
+    hostport: localhost:5432
+  admin:
+    hostport: localhost:8000
+....
+
+=== nodes
+
+[options="header,footer"]
+|===
+| Parameter | Description
+| _<node>_:hostport | the host:port of the <node>
+| _<node>_:role | the role of the _<node>_, valid values are 'master' and 'replica'
+| _<node>_:metadata | _not implemented_
+|===
+
+Where _<node>_ is the name given to the node.
+
+....
+nodes:
+  master:
+    hostport: 192.168.0.100:5432
+    role: master
+    metadata: {}
+  replica1:
+    hostport: 192.168.0.101:5432
+    role: replica
+    metadata: {}
+....
+
+=== credentials
+
+[options="header,footer"]
+|===
+| Parameter | Description
+| username | the username for the pool connections
+| database | the database for the pool connections
+| password | the password for the pool connections
+| options | connection string options other than those listed above 
+| ssl:enable | enable SSL connections
+| ssl:sslmode | the SSL mode for establishing pool connections
+|===
+
+=== pool
+
+[options="header,footer"]
+|===
+| Parameter | Description
+| capacity | the number of pool connections to create for each node configured
+|===
+
+==== Example
+
+....
+pool:
+  capacity: 2
+....
+
+=== healthcheck
+
+[options="header,footer"]
+|===
+| Parameter | Description
+| delay | seconds to delay between health checks
+| query | SQL to user for the health check
+|===
+
+....
+healthcheck:
+   delay: 60
+   query: select now();
+....
 
 == Testing
+
+Multiple testing envrionments are provided for testing the proxy.
+
+=== Docker
 
 A test script is provided that will run a PostgreSQL cluster, with
 a single master and replica.  Run the database script as follows:
 ....
-export CCP_IMAGE_TAG=centos7-9.5-1.2.7
-bin/run-cluster.sh
+$> export CCP_IMAGE_TAG=centos7-9.5-1.2.7
+$> ./scripts/docker/run-cluster.sh
 ....
 
 This will start two docker containers that execute the PostgreSQL cluster.
@@ -87,53 +240,84 @@ a replica container listens on *localhost:12002*
 The PostgreSQL user id is *postgres*, the password is *password*, and you
 would connect to these container database like this using psql:
 ....
-psql -h 127.0.0.1 -p 12000 -U postgres postgres
-psql -h 127.0.0.1 -p 12002 -U postgres postgres
+$> psql -h 127.0.0.1 -p 12000 -U postgres postgres
+$> psql -h 127.0.0.1 -p 12002 -U postgres postgres
 ....
 
 Stop the containers like this:
 ....
-docker stop master
-docker stop replica
+$> docker stop master
+$> docker stop replica
 ....
 
 Start the containers like this:
 ....
-docker start master
-docker start replica
+$> docker start master
+$> docker start replica
+....
+
+=== Vagrant
+
+A vagrant configuration is provided that will run a PostgreSQL cluster, with a
+single master and replica.
+
+To start the environment run:
+
+....
+$> cd ./scripts/vagrant
+$> vagrant up master
+$> vagrant up replica
+....
+
+The above will create two separate VM's that are based of off CentOS 7 and
+provisioned using Ansible.
+
+To stop the environment run:
+
+....
+$> cd ./scripts/vagrant
+$> vagrant halt
+....
+
+The PostgreSQL user id is *postgres*, the password is *password*, and you
+would connect to these container database like this using psql:
+
+....
+$> psql -h 192.168.56.100 -U postgres postgres
+$> psql -h 192.168.56.101 -U postgres postgres
 ....
 
 === Test Execution
 
 Start the *crunchy-proxy* like this:
 ....
-go run crunchyproxy.go -config=config.json
+$> go run main.go start --config=./examples/config.yaml
 ....
 
 This will do the following:
 
- * start an admin service on localhost:10000
+ * start an admin service on localhost:8000
  * listen on localhost:5432 for client requests
- * read config.json and set up a runtime configuration
+ * read config.yaml and set up a runtime configuration
  * route any client messages to the PostgreSQL containers
 
 === Benchmark
 
-For some simple benchmark results, run some tests using the 
-*crunchy-proxy*:
+For some simple benchmark results, run some tests using the *crunchy-proxy*:
+
 ....
-cd ./testclient
-./run-test-proxy.sh
+$> ./tests/pgbench/init-tests.sh
+$> go run main.go start --config=./tests/pgbench/config.yaml
+$> ./tests/pgbench/run-simple-load-test.sh
 ....
 
-You can also run the *psql* command against the proxy as a test
-client.
+You can also run the *psql* command against the proxy as a test client.
 
 === Overhead
 
 Overhead of the proxy was measured and shows the following
 for the typical case of handling a SQL statement:
-[width="90%",cols="30,30,20,20", frame="topbot",options="header,footer"]
+[cols="30,30,20,20",options="header,footer"]
 |======================
 |Test | Proxy | No-Proxy | Overhead
 |Single SQL Statement |  2.240026ms | 2.085424ms | +0.154602ms
@@ -175,33 +359,43 @@ curl http://localhost:10000/api/stats
 If you are a developer and want to build the proxy from source code,
 follow these steps...
 
-Assuming an installation directory of *$HOME/gdev*, follow the following 
-steps to build *crunchy-proxy* from source:
+=== Installing Go
+
+Install a golang compiler by following the instructions
+https://golang.org/doc/install[here] and setting *GOROOT* and *GOPATH*
+environment variables accordingly.
+
+=== Getting the source
+
 ....
-mkdir -p $HOME/gdev/src $HOME/gdev/pkg $HOME/gdev/bin
-export GOPATH=$HOME/gdev;export GOBIN=$GOPATH/bin;export PATH=$PATH:$GOBIN
-export BUILDBASE=$GOPATH/github.com/crunchydata/crunchy-proxy
+$> go get -d -u github.com/crunchydata/crunchy-proxy
 ....
 
-First, install a golang compiler. As an example, on centos7:
+=== Building the binaries
+
+Dependency management is handled by
+https://github.com/Masterminds/glide[glide]. Before building from source, it is
+necessary to install it by following the installation instructions
+https://github.com/Masterminds/glide#install[here].
+
 ....
-sudo yum -y install golang 
+$> cd $GOPATH/src/github.com/crunchydata/crunchy-proxy
+$> make
 ....
 
-Next, pull the source code as follows:
-....
-cd gdev/src
-go get github.com/tools/godep
-mkdir github.com/crunchydata
-cd github.com/crunchydata
-git clone git@github.com:CrunchyData/crunchy-proxy.git
-....
+The resulting *_crunchy-proxy_* binary will be created in the _build_
+directory.
 
-Next, build the binary as follows:
+=== Building the Documentation
+
+Requirements for building the documentation are as follows:
+
+* http://asciidoctor.org/[asciidoctor]                                            
+* https://github.com/asciidoctor/asciidoctor-pdf[asciidoctor-pdf]                 
+* https://github.com/llaville/asciidoc-bootstrap-backend[asciidoc-bootstrap-backend]
+
 ....
-cd crunchy-proxy
-godep restore
-make
+$> make docs
 ....
 
 == Design
@@ -209,43 +403,10 @@ The example shows a message traveling down this path:
 
 *pg client->proxy->pg server->proxy->pg client*
 
-=== Packages
-
-The proxy code is implemented in the following golang packages:
-
-.proxy golang packages
-[width="90%",frame="topbot",cols="30,70", options="header"]
-|======================
-|Package Name | Purpose
-|adapter        |adapters can be applied to in-bound and out-bound message flows to do add capabilities like logging or auditing
-|admin        |the administration interface, a REST API 
-|config        |the configuration file format
-|proxy        |the main proxy processing
-|testclient        | a test client that uses libpq, useful for testing
-|tests        | standalone unit tests
-|======================
-
-=== Makefile Targets
-
-The Makefile has the following targets defined:
-
-.Makefile targets
-[width="90%",frame="topbot",cols="30,70", options="header"]
-|======================
-|Makefile Target | Purpose
-|gendeps        |calls godep to generate dependencies for golang compilation
-|docsbuild        |calls asciidoctor to generate PDF and HTML versions of the documentation
-|clean        |removes the proxy binaries 
-|dockerimage        |builds the docker image for the proxy
-|push        | pushes the docker image to dockerhub
-|run        | runs the proxy in foreground using the default configuration file
-|test        | executes the standalone unit tests
-|======================
-
 === Wire Protocol
 
-*crunchy-proxy* operates at the PostgreSQL wire protocol (network) layer to understand
-PostgreSQL client authentication requests and SQL statements passed
+*crunchy-proxy* operates at the PostgreSQL wire protocol (network) layer to
+understand PostgreSQL client authentication requests and SQL statements passed
 by a client to a PostgreSQL backend.
 
 The proxy does very little processing of the messages sent between
@@ -259,44 +420,60 @@ or other language driver.
 
 === Connection Pooling
 
-*crunchy proxy* provisions a connection pool for each backend (master and replica(s)) that is defined in the proxy 
-configuration file.  The connection pool is a fixed size currently and established before the proxy begins to accept connections from clients.
+*crunchy proxy* provisions a connection pool for each backend (master and
+replica(s)) that is defined in the proxy configuration file.  The connection
+pool is a fixed size currently and established before the proxy begins to
+accept connections from clients.
 
-The connections in the pool are determined by the pool settings found within the configuration parameters *credentials* and *pool*.
+The connections in the pool are determined by the pool settings found within
+the configuration parameters *credentials* and *pool*.
 
-Currently *crunchy proxy* only supports basic PostgreSQL password authentication using username and password.
+Currently *crunchy proxy* only supports basic PostgreSQL password
+authentication using username and password.
 
-As client requests come into the proxy, the proxy will choose to which backend to route the SQL statement and then pick a free connection from the backend's 
+As client requests come into the proxy, the proxy will choose to which backend
+to route the SQL statement and then pick a free connection from the backend's
 connection pool.
 
-For each connection pool there is a golang channel defined to manage which connections are available for use when processing a SQL statement.  
-After the SQL statement is processed, the connection is returned to the pool.  You can think of the pool's channel as a queue of available connections.
+For each connection pool there is a golang channel defined to manage which
+connections are available for use when processing a SQL statement.  After the
+SQL statement is processed, the connection is returned to the pool.  You can
+think of the pool's channel as a queue of available connections.
 
 === Client Authentication
 
-Each client must authenticate against the master backend before the proxy will process future client requests.  *crunchy proxy* does not include
-an authentication store itself, but instead relies on the master backend to perform authentication.
+Each client must authenticate against the master backend before the proxy will
+process future client requests.  *crunchy proxy* does not include an
+authentication store itself, but instead relies on the master backend to
+perform authentication.
 
-Once a client does authenticate, the proxy will terminate the client's connection to the master and subsequently begin using the connections 
-from the connection pools.
+Once a client does authenticate, the proxy will terminate the client's
+connection to the master and subsequently begin using the connections from the
+connection pools.
 
 === Annotations
 
-SQL statements that start with a SQL comment of a particular format will be used to determine the routing of a SQL statement either to a master or a replica.
+SQL statements that start with a SQL comment of a particular format will be
+used to determine the routing of a SQL statement either to a master or a
+replica.
 
-To simplify the proxy parsing, we require the annotation begin at the
-first byte of the SQL statement as follows:
+To simplify the proxy parsing, we require the annotation begin at the first
+byte of the SQL statement as follows:
+
 ....
 /* read */ select from foo.....
 ....
 
-If no annocation is found in a SQL statement, *it is assumed the statement
-is a write*.
+If no annocation is found in a SQL statement, *it is assumed the statement is a
+write*.
 
-In certain circumstances, it may be desriable to route all the SQL statements within a transaction to the same backend.  
+In certain circumstances, it may be desriable to route all the SQL statements
+within a transaction to the same backend.  
 
-In order to support this case, it is possible include a *start* annotation in the first SQL statement and a *finish* annotation in the last SQL statement 
-as follows:
+In order to support this case, it is possible include a *start* annotation in
+the first SQL statement and a *finish* annotation in the last SQL statement as
+follows:
+
 ....
 /* start */ begin; 
 select .....; 
@@ -309,22 +486,29 @@ select .....;
 
 === Health Checking
 
-The *crunchy-proxy* status health check is currently a simple implementation - essentially determining only whether the backend can process a SQL statement.  
+The *crunchy-proxy* status health check is currently a simple implementation -
+essentially determining only whether the backend can process a SQL statement.  
 
-The health check is performed every few second on each backend by a separate goroutine that runs until the proxy exits.  
+The health check is performed every few second on each backend by a separate
+goroutine that runs until the proxy exits.  
 
-The backend status is checked by the active connection processing in order to determine which backends are available to process a SQL statement.
+The backend status is checked by the active connection processing in order to
+determine which backends are available to process a SQL statement.
 
 As the status of a backend changes, the global configuration is updated.  
 
-Health status is captured and placed into an event channel.  The event channel is used to publish events to any number of subscribers to the
-REST API.
+Health status is captured and placed into an event channel.  The event channel
+is used to publish events to any number of subscribers to the REST API.
 
 == Legal Notices
 
 Copyright © 2017 Crunchy Data Solutions, Inc.
 
-CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+CRUNCHY DATA SOLUTIONS, INC. PROVIDES THIS GUIDE "AS IS" WITHOUT WARRANTY OF
+ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF NON INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR
+PURPOSE.
 
-Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks of Crunchy Data Solutions, Inc.
+Crunchy, Crunchy Data Solutions, Inc. and the Crunchy Hippo Logo are trademarks
+of Crunchy Data Solutions, Inc.
 

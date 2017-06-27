@@ -34,9 +34,9 @@ the master and the replicas.
 
 == Configuration
 
-The SSL configuration can be found within the 'Credentials' section of the
-proxy configuration file. The follow table enumerates and describes each
-configuration option. *Note*: '_Enable_' and '_SSLMode_' are required fields.
+The SSL configuration can be found within the 'credentials' section of the
+proxy configuration file. The following table enumerates and describes each
+configuration option. *Note*: '_enable_' and '_sslmode_' are required fields.
 
 [width="90%",cols="30,40,30",frame="topbot",options="header,footer"]
 |===
@@ -44,37 +44,37 @@ configuration option. *Note*: '_Enable_' and '_SSLMode_' are required fields.
 | Type
 | Description
 
-| Enable
+| enable
 | boolean
 | Enables SSL connections through the proxy. Set true to allow, otherwise false
 *(required)*.
 
-| SSLMode
+| sslmode
 | string
 | The client SSL mode. Valid values are 'disable', 'require', 'verify-ca' and
 'verify-full' *(required)*.
 
-| SSLCert
+| sslcert
 | string
 | The path to the client certificate.
 
-| SSLKey
+| sslkey
 | string
 | The path to the client key.
 
-| SSLRootCA
+| sslrootca
 | string
 | The path to the client root CA certificate.
 
-| SSLServerCert
+| sslservercert
 | string
 | The path to the server certificate.
 
-| SSLServerKey
+| sslserverkey
 | string
 | The path to the server key.
 
-| SSLServerCA
+| sslserverca
 | string
 | The path to the server root CA certificate.
 |===
@@ -83,20 +83,19 @@ configuration option. *Note*: '_Enable_' and '_SSLMode_' are required fields.
 
 ....
 [...]
-"Credentials": {
-	"Username": "postgres",
-	"Database": "postgres",
-	"SSL": {                                                                    
-		"Enable": true,                                                         
-		"SSLMode": "require",                                                   
-		"SSLCert": "./certs/client/client.crt",                                 
-		"SSLKey": "./certs/client/client.key",                                  
-		"SSLRootCA": "./certs/client/ca.crt",                                   
-		"SSLServerCert": "./certs/server/server.crt",                           
-		"SSLServerKey": "./certs/server/server.key",                            
-		"SSLServerCA": "./certs/server/ca.crt"                                  
-}
-[...]   
+credentials:
+  username: postgres
+  database": postgres
+  ssl:
+  enable: true
+  sslmode: require
+  sslcert: ./certs/client/client.crt
+  sslkey: ./certs/client/client.key
+  sslrootca: ./certs/client/ca.crt
+  sslervercert: ./certs/server/server.crt
+  sslserverkey: ./certs/server/server.key
+  sslserverca: ./certs/server/ca.crt
+[...]
 ....
 
 == Example Usage

@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-.PHONY: all build clean docs resolve install release run default
+.PHONY: all build clean clean-docs docs resolve install release run default
 
 all: clean resolve build
 
@@ -21,6 +21,7 @@ PROJECT_DIR := $(shell pwd)
 BUILD_DIR := $(PROJECT_DIR)/build
 DIST_DIR := $(PROJECT_DIR)/dist
 VENDOR_DIR := $(PROJECT_DIR)/vendor
+DOCS_DIR := $(PROJECT_DIR)/docs
 
 BUILD_TARGET := $(PROJECT_DIR)/main.go
 
@@ -45,7 +46,11 @@ build:
 install:
 	@go install
 
+clean-docs:
+	@rm -rf $(DOCS_DIR)/pdf
+
 docs:
+	@mkdir -p $(DOCS_DIR)/pdf
 	@cd docs && ./build-docs.sh
 
 release: clean resolve build

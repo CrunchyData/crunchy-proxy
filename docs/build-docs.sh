@@ -16,3 +16,7 @@
 # Build Users Guide
 asciidoctor-pdf ./crunchy-proxy-user-guide.asciidoc \
 		--out-file ./pdf/crunchy-proxy-user-guide.pdf
+
+# Build SSL Guide
+asciidoctor-pdf ./crunchy-proxy-ssl-guide.asciidoc \
+		--out-file ./pdf/crunchy-proxy-ssl-guide.pdf

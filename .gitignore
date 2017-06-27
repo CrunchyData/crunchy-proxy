@@ -2,6 +2,7 @@
 vendor
 build
 dist
+docs/pdf
 
 # ignore test/dev environment related directories
 .docker
