@@ -13,13 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-asciidoc \
--b bootstrap \
--f ./demo.conf \
--o ./htmldoc/crunchy-proxy-user-guide.html \
--a toc2 \
--a toc-placement=right \
-./crunchy-proxy-user-guide.asciidoc
-
-asciidoctor-pdf ./crunchy-proxy-user-guide.asciidoc --out-file ./pdf/crunchy-proxy-user-guide.pdf
-
+# Build Users Guide
+asciidoctor-pdf ./crunchy-proxy-user-guide.asciidoc \
+		--out-file ./pdf/crunchy-proxy-user-guide.pdf
