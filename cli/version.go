@@ -4,6 +4,10 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+
+	pb "github.com/crunchydata/crunchy-proxy/server/serverpb"
 )
 
 var versionCmd = &cobra.Command{
@@ -19,11 +23,28 @@ func init() {
 
 	stringFlag(flags, &host, FlagAdminHost)
 	stringFlag(flags, &port, FlagAdminPort)
-	stringFlag(flags, &format, FlagOutputFormat)
 }
 
 func runVersion(cmd *cobra.Command, args []string) error {
-	fmt.Println("Not Implemented")
+	address := fmt.Sprintf("%s:%s", host, port)
+
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	defer conn.Close()
+
+	c := pb.NewAdminClient(conn)
+
+	response, err := c.Version(context.Background(), &pb.VersionRequest{})
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(response.Version)
 
 	return nil
 }

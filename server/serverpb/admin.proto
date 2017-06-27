@@ -47,6 +47,13 @@ message ShutdownResponse {
 	bool success = 1;
 }
 
+message VersionRequest {
+}
+
+message VersionResponse {
+    string version = 1;
+}
+
 service Admin {
 	rpc Nodes(NodeRequest) returns (NodeResponse) {
 		option (google.api.http) = {
@@ -78,4 +85,10 @@ service Admin {
 			body: "*"
 		};
 	}
+
+    rpc Version(VersionRequest) returns (VersionResponse) {
+        option (google.api.http) = {
+            get: "/_admin/version"
+        };
+    }
 }

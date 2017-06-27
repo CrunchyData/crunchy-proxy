@@ -82,6 +82,14 @@ func (s *AdminServer) Statistics(context.Context, *pb.StatisticsRequest) (*pb.St
 	return &response, nil
 }
 
+func (s *AdminServer) Version(context.Context, *pb.VersionRequest) (*pb.VersionResponse, error) {
+	var response pb.VersionResponse
+
+	response.Version = "1.0.0beta"
+
+	return &response, nil
+}
+
 func (s *AdminServer) Serve(l net.Listener) {
 	log.Infof("Admin Server listening on: %s", l.Addr())
 	defer s.server.waitGroup.Done()
