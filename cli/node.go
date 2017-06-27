@@ -12,11 +12,9 @@ import (
 )
 
 var nodeCmd = &cobra.Command{
-	Use:     "node",
-	Short:   "",
-	Long:    "",
-	Example: "",
-	RunE:    runNode,
+	Use:   "node",
+	Short: "show information about configured nodes",
+	RunE:  runNode,
 }
 
 var nodeListCmd = &cobra.Command{}
@@ -24,9 +22,9 @@ var nodeListCmd = &cobra.Command{}
 func init() {
 	flags := nodeCmd.Flags()
 
-	flags.StringVarP(&host, "host", "", "localhost", "")
-	flags.StringVarP(&port, "port", "", "8000", "")
-	flags.StringVarP(&format, "format", "", "plain", "")
+	stringFlag(flags, &host, FlagAdminHost)
+	stringFlag(flags, &port, FlagAdminPort)
+	stringFlag(flags, &format, FlagOutputFormat)
 }
 
 func runNode(cmd *cobra.Command, args []string) error {

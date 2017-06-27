@@ -12,19 +12,17 @@ import (
 )
 
 var statsCmd = &cobra.Command{
-	Use:     "stats [options]",
-	Short:   "",
-	Long:    "",
-	Example: "",
-	RunE:    runStats,
+	Use:   "stats [options]",
+	Short: "show query statistics for configured nodes",
+	RunE:  runStats,
 }
 
 func init() {
 	flags := statsCmd.Flags()
 
-	flags.StringVarP(&host, "host", "", "localhost", "")
-	flags.StringVarP(&host, "port", "", "8000", "")
-	flags.StringVarP(&format, "format", "", "plain", "")
+	stringFlag(flags, &host, FlagAdminHost)
+	stringFlag(flags, &port, FlagAdminPort)
+	stringFlag(flags, &format, FlagOutputFormat)
 }
 
 func runStats(cmd *cobra.Command, args []string) error {

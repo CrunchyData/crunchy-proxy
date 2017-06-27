@@ -11,19 +11,16 @@ import (
 )
 
 var stopCmd = &cobra.Command{
-	Use:     "stop",
-	Short:   "",
-	Long:    "",
-	Example: "",
-	RunE:    runStop,
+	Use:   "stop",
+	Short: "stop a running instance of a proxy",
+	RunE:  runStop,
 }
 
 func init() {
 	flags := stopCmd.Flags()
 
-	flags.StringVarP(&host, "host", "", "localhost", "")
-	flags.StringVarP(&port, "port", "", "8000", "")
-	flags.BoolVarP(&force, "force", "", false, "")
+	stringFlag(flags, &host, FlagAdminHost)
+	stringFlag(flags, &port, FlagAdminPort)
 }
 
 func runStop(cmd *cobra.Command, args []string) error {

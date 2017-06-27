@@ -8,18 +8,22 @@ import (
 
 var versionCmd = &cobra.Command{
 	Use:     "version",
-	Short:   "",
+	Short:   "show version information for instance of proxy",
 	Long:    "",
 	Example: "",
 	RunE:    runVersion,
 }
 
 func init() {
-	crunchyproxyCmd.AddCommand(versionCmd)
+	flags := versionCmd.Flags()
+
+	stringFlag(flags, &host, FlagAdminHost)
+	stringFlag(flags, &port, FlagAdminPort)
+	stringFlag(flags, &format, FlagOutputFormat)
 }
 
 func runVersion(cmd *cobra.Command, args []string) error {
-	fmt.Println("Version!")
+	fmt.Println("Not Implemented")
 
 	return nil
 }

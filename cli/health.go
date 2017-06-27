@@ -12,19 +12,17 @@ import (
 )
 
 var healthCmd = &cobra.Command{
-	Use:     "health [options]",
-	Short:   "",
-	Long:    "",
-	Example: "",
-	RunE:    runHealth,
+	Use:   "health [options]",
+	Short: "show health check information for configured nodes",
+	RunE:  runHealth,
 }
 
 func init() {
 	flags := healthCmd.Flags()
 
-	flags.StringVarP(&host, "host", "", "localhost", "")
-	flags.StringVarP(&host, "port", "", "8000", "")
-	flags.StringVarP(&format, "format", "", "plain", "")
+	stringFlag(flags, &host, FlagAdminHost)
+	stringFlag(flags, &port, FlagAdminPort)
+	stringFlag(flags, &format, FlagOutputFormat)
 }
 
 func runHealth(cmd *cobra.Command, args []string) error {
