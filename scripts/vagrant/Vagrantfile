@@ -91,20 +91,20 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # Test VM Configuration
-  config.vm.define "test" do |test|
-    test.vm.box = "centos/7"
+  # pgpool VM Configuration
+  #
+  # This VM is for performance testing only.
+  config.vm.define "pgpool" do |pgp|
+    pgp.vm.box = "centos/7"
 
-	test.vm.hostname = "test.crunchy.lab"
+	pgp.vm.hostname = "pgpool.crunchy.lab"
 
-	test.vm.network "private_network", ip: "192.168.56.200"
+	pgp.vm.network "private_network", ip: "192.168.56.201"
 
-	test.vm.synced_folder "../../test", "/vagrant"
-
-	test.vm.provision "ansible" do |ansible|
-	  ansible.playbook = "ansible/test.yml"
-	  ansible.verbose = "vv"
-	  ansible.sudo = true
-	end
+	# Syncing the default folder is not required. There is no need to share
+	# files between the Host and the Guest at this point. Therefore, to avoid
+	# any potential permission or other issues, it is better to just disable
+	# it.
+	pgp.vm.synced_folder ".", "/vagrant", disabled: true
   end
 end
