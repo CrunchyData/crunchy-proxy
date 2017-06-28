@@ -138,7 +138,7 @@ func ReadConfig() {
 	log.Debugf("Using configuration file: %s", viper.ConfigFileUsed())
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	err = viper.Unmarshal(&c)
