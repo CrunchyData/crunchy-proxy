@@ -12,11 +12,11 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-.PHONY: all build clean clean-docs docs resolve install release run default
+.PHONY: all build clean clean-docs docs docker docker-push resolve install release run default
 
 all: clean resolve build
 
-RELEASE_VERSION := v1.0.0beta
+RELEASE_VERSION := 1.0.0-beta
 PROJECT_DIR := $(shell pwd)
 BUILD_DIR := $(PROJECT_DIR)/build
 DIST_DIR := $(PROJECT_DIR)/dist
@@ -62,17 +62,9 @@ release: clean resolve build
 run:
 	@go run main.go --config=./examples/config.yaml
 
-#dockerimage:
-#	cp $(GOBIN)/crunchyproxy bin
-#	docker build -t crunchy-proxy -f Dockerfile.centos7
-#	docker tag crunchy-proxy crunchydata/crunchy-proxy:centos7-$(PROXY_RELEASE)
+docker:
+	docker build -t crunchy-proxy -f Dockerfile.centos7 .
+	docker tag crunchy-proxy crunchydata/crunchy-proxy:centos7-$(RELEASE_VERSION)
 
-#pushdockerimage:
-#	docker push crunchydata/crunchy-proxy:centos7-$(PROXY_RELEASE)
-
-#push:
-#	./bin/push-to-dockerhub.sh
-
-#test:
-#	cd tests && go test; /usr/bin/test "$$?" -eq 0
-
+docker-push:
+	docker push crunchydata/crunchy-proxy:centos7-$(RELEASE_VERSION)
