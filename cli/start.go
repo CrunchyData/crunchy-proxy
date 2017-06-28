@@ -25,9 +25,10 @@ var startCmd = &cobra.Command{
 }
 
 func init() {
-	startCmd.Flags().BoolVarP(&background, "background", "b", false, "")
-	startCmd.Flags().StringVarP(&configPath, "config", "c", "", "")
-	startCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "")
+	flags := startCmd.Flags()
+	boolFlag(flags, &background, FlagBackground)
+	stringFlag(flags, &configPath, FlagConfigPath)
+	stringFlag(flags, &logLevel, FlagLogLevel)
 }
 
 func runStart(cmd *cobra.Command, args []string) error {

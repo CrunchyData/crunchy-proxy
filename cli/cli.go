@@ -15,9 +15,8 @@ func Main() {
 }
 
 var crunchyproxyCmd = &cobra.Command{
-	Use:          "",
-	Short:        "",
-	Long:         "",
+	Use:          "crunchy-proxy",
+	Short:        "A simple connection pool based SQL routing proxy",
 	SilenceUsage: true,
 }
 
