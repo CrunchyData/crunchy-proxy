@@ -1,6 +1,6 @@
 FROM centos:7
 
-LABEL Release="1.0.0beta" Vendor="Crunchy Data Solutions"
+LABEL Release="1.0.0-beta" Vendor="Crunchy Data Solutions"
 
 RUN yum -y install openssh-clients  hostname && yum clean all -y
 
