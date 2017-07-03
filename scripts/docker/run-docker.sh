@@ -12,12 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-CONFIG=$BUILDBASE/tests/docker/config.json
-sudo chcon -Rt svirt_sandbox_file_t $CONFIG
-PROXY_TAG=centos7-0.0.1
-CONTAINER=crunchyproxy
-docker rm $CONTAINER
-docker run -d --name=$CONTAINER \
-	-p 5432:5432 \
-	-v $CONFIG:/config/config.json \
+
+PROXY_TAG=centos7-1.0.0-beta
+PROXY_PORT=5432
+PROXY_ADMIN_PORT=10000
+
+CONTAINER_NAME=crunchy-proxy
+
+CONFIG=$(readlink -f ./config.yaml)
+
+if [ -f /etc/redhat-release ]; then
+	sudo chcon -Rt svirt_sandbox_file_t $(readlink -f $CONFIG)
+fi
+
+docker rm $CONTAINER_NAME
+docker run -d --name=$CONTAINER_NAME \
+	-p 127.0.0.1:$PROXY_PORT:$PROXY_PORT \
+	-p 127.0.0.1:$PROXY_ADMIN_PORT:$PROXY_ADMIN_PORT \
+	-v $CONFIG:/config/config.yaml \
 	crunchydata/crunchy-proxy:$PROXY_TAG
