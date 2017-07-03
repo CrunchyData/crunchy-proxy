@@ -79,10 +79,10 @@ $> crunchy-proxy start --config=config.yaml
 To run the proxy at different logging output levels:
 
 ....
-$> crunchyproxy -config=config.yaml --log-level=<level>
+$> crunchy-proxy start --config=config.yaml --log-level=<level>
 ....
 
-Where level is one of the following:
+Where _<level>_ is one of the following:
 
 * *debug*
 * *info*
