@@ -12,5 +12,5 @@ EXPOSE 5432
 
 USER daemon
 
-CMD ["crunchyproxy","--config=/config/config.yaml" ]
+CMD ["crunchy-proxy","start", "--config=/config/config.yaml" ]
 
