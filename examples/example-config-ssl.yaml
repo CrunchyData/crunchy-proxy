@@ -1,0 +1,40 @@
+server:
+  proxy:
+    hostport: proxy.crunchy.lab:5432
+  admin:
+    hostport: localhost:10000
+nodes:
+  master:
+    hostport: master.crunchy.lab:5432
+    role: master
+    metadata:
+      cpu: large
+      disk: fast
+  replica:
+    role: replica
+    hostport: replica.crunchy.lab:5432
+    metadata:
+      cpu: small
+      disk: slow
+
+healthcheck:
+  delay: 60
+  query: select now();
+
+pool:
+  capacity: 2
+
+credentials:
+  username: postgres
+  database: postgres
+  password: password
+  ssl:
+    enable: true
+    sslmode: require
+    sslcert: ./scripts/certs/client/client.crt
+    sslkey: ./scripts/certs/client/client.key
+    sslrootca: ./scripts/certs/client/ca.crt
+    sslservercert: ./scripts/certs/server/server.crt
+    sslserverkey: ./scripts/certs/server/server.key
+    sslserverca: ./scripts/certs/server/ca.crt
+
