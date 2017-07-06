@@ -30,10 +30,15 @@ func init() {
 func runNode(cmd *cobra.Command, args []string) error {
 	address := fmt.Sprintf("%s:%s", host, port)
 
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	dialOptions := []grpc.DialOption{
+		grpc.WithDialer(adminServerDialer),
+		grpc.WithInsecure(),
+	}
+
+	conn, err := grpc.Dial(address, dialOptions...)
 
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
 	}
 
 	defer conn.Close()
@@ -43,7 +48,7 @@ func runNode(cmd *cobra.Command, args []string) error {
 	response, err := c.Nodes(context.Background(), &pb.NodeRequest{})
 
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err.Error())
 	}
 
 	var result string

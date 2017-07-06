@@ -28,7 +28,12 @@ func init() {
 func runVersion(cmd *cobra.Command, args []string) error {
 	address := fmt.Sprintf("%s:%s", host, port)
 
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	dialOptions := []grpc.DialOption{
+		grpc.WithDialer(adminServerDialer),
+		grpc.WithInsecure(),
+	}
+
+	conn, err := grpc.Dial(address, dialOptions...)
 
 	if err != nil {
 		fmt.Println(err)

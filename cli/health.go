@@ -29,7 +29,12 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	var result string
 	address := fmt.Sprintf("%s:%s", host, port)
 
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	dialOptions := []grpc.DialOption{
+		grpc.WithDialer(adminServerDialer),
+		grpc.WithInsecure(),
+	}
+
+	conn, err := grpc.Dial(address, dialOptions...)
 
 	if err != nil {
 		fmt.Println(err)
