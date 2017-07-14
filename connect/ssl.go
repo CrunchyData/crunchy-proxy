@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/crunchydata/crunchy-proxy/common"
 	"github.com/crunchydata/crunchy-proxy/config"
 	"github.com/crunchydata/crunchy-proxy/util/log"
 )
@@ -54,8 +53,6 @@ func UpgradeServerConnection(client net.Conn) net.Conn {
 			creds.SSL.SSLServerCert,
 			creds.SSL.SSLServerKey)
 
-		log.Info(creds.SSL.SSLServerCert)
-
 		tlsConfig.Certificates = []tls.Certificate{cert}
 
 		client = tls.Server(client, &tlsConfig)
@@ -67,9 +64,9 @@ func UpgradeServerConnection(client net.Conn) net.Conn {
 /*
  *
  */
-func UpgradeClientConnection(node *common.Node, connection net.Conn) net.Conn {
+func UpgradeClientConnection(hostPort string, connection net.Conn) net.Conn {
 	verifyCA := false
-	hostname, _, _ := net.SplitHostPort(node.HostPort)
+	hostname, _, _ := net.SplitHostPort(hostPort)
 	tlsConfig := tls.Config{}
 	creds := config.GetCredentials()
 
@@ -104,22 +101,28 @@ func UpgradeClientConnection(node *common.Node, connection net.Conn) net.Conn {
 	}
 
 	/* Add client SSL certificate and key. */
-	log.Info("Loading SSL certificate and key.")
+	log.Debug("Loading SSL certificate and key")
 	cert, _ := tls.LoadX509KeyPair(creds.SSL.SSLCert, creds.SSL.SSLKey)
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
 	/* Add root CA certificate. */
-	log.Info("Loading root CA.")
+	log.Debug("Loading root CA.")
 	tlsConfig.RootCAs = x509.NewCertPool()
 	rootCA, _ := ioutil.ReadFile(creds.SSL.SSLRootCA)
 	tlsConfig.RootCAs.AppendCertsFromPEM(rootCA)
 
 	/* Upgrade the connection. */
-	log.Info("Upgrading connection.")
+	log.Info("Upgrading to SSL connection.")
 	client := tls.Client(connection, &tlsConfig)
 
 	if verifyCA {
-		verifyCertificateAuthority(client, &tlsConfig)
+		log.Debug("Verify CA is enabled")
+		err := verifyCertificateAuthority(client, &tlsConfig)
+		if err != nil {
+			log.Fatalf("Could not verify certificate authority: %s", err.Error())
+		} else {
+			log.Info("Successfully verified CA")
+		}
 	}
 
 	return client
@@ -132,11 +135,11 @@ func UpgradeClientConnection(node *common.Node, connection net.Conn) net.Conn {
  * client - the TLS client connection.
  * tlsConfig - the configuration associated with the connection.
  */
-func verifyCertificateAuthority(client *tls.Conn, tlsConf *tls.Config) {
+func verifyCertificateAuthority(client *tls.Conn, tlsConf *tls.Config) error {
 	err := client.Handshake()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	/* Get the peer certificates. */
@@ -167,7 +170,5 @@ func verifyCertificateAuthority(client *tls.Conn, tlsConf *tls.Config) {
 	 */
 	_, err = certs[0].Verify(options)
 
-	if err != nil {
-		panic(err)
-	}
+	return err
 }

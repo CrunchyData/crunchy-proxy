@@ -29,3 +29,7 @@ func (p *Pool) Next() net.Conn {
 func (p *Pool) Return(connection net.Conn) {
 	p.connections <- connection
 }
+
+func (p *Pool) Len() int {
+	return len(p.connections)
+}

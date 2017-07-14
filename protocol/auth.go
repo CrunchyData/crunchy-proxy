@@ -1,6 +1,6 @@
 package protocol
 
-func CreatePasswordMessage(password string) *MessageBuffer {
+func CreatePasswordMessage(password string) []byte {
 	message := NewMessageBuffer([]byte{})
 
 	/* Set the message type */
@@ -15,5 +15,5 @@ func CreatePasswordMessage(password string) *MessageBuffer {
 	/* Update the message length */
 	message.ResetLength(PGMessageLengthOffset)
 
-	return message
+	return message.Bytes()
 }

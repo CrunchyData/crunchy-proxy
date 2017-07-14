@@ -54,16 +54,33 @@ func (p *Proxy) setupPools() {
 
 		/* Create connections and add to pool. */
 		for i := 0; i < capacity; i++ {
-			log.Infof("Setting up connection #%d for node '%s'", i, name)
 			/* Connect and authenticate */
 			log.Infof("Connecting to node '%s' at %s...", name, node.HostPort)
-			c, err := connect.Connect(node.HostPort)
+			connection, err := connect.Connect(node.HostPort)
+
+			username := config.GetString("credentials.username")
+			database := config.GetString("credentials.database")
+			options := config.GetStringMapString("credentials.options")
+
+			startupMessage := protocol.CreateStartupMessage(username, database, options)
+
+			connection.Write(startupMessage)
+
+			response := make([]byte, 4096)
+			connection.Read(response)
+
+			authenticated := connect.HandleAuthenticationRequest(connection, response)
+
+			if !authenticated {
+				log.Error("Authentication failed")
+			}
 
 			if err != nil {
 				log.Errorf("Error establishing connection to node '%s'", name)
 				log.Errorf("Error: %s", err.Error())
 			} else {
-				newPool.Add(c)
+				log.Infof("Successfully connected to '%s' at '%s'", name, node.HostPort)
+				newPool.Add(connection)
 			}
 		}
 	}
@@ -159,7 +176,9 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 	authenticated, err := connect.AuthenticateClient(client, message, length)
 
 	/* If the client could not authenticate then go no further. */
-	if !authenticated {
+	if err == io.EOF {
+		return
+	} else if !authenticated {
 		log.Errorf("Client: %s - authentication failed", client.RemoteAddr())
 		log.Errorf("Error: %s", err.Error())
 		return

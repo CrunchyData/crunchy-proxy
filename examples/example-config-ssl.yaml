@@ -28,6 +28,8 @@ credentials:
   username: postgres
   database: postgres
   password: password
+  options:
+    application_name: crunchy-proxy
   ssl:
     enable: true
     sslmode: require

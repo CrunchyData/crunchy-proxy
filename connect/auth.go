@@ -2,7 +2,9 @@ package connect
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 
@@ -17,7 +19,7 @@ import (
  * connection - the connection to authenticate against.
  * message - the authentication message sent by the backend.
  */
-func handleAuthenticationRequest(connection net.Conn, message []byte) bool {
+func HandleAuthenticationRequest(connection net.Conn, message []byte) bool {
 	var msgLength int32
 	var authType int32
 
@@ -56,15 +58,56 @@ func handleAuthenticationRequest(connection net.Conn, message []byte) bool {
 	return false
 }
 
+func createMD5Password(username string, password string, salt string) string {
+	// Concatenate the password and the username together.
+	passwordString := fmt.Sprintf("%s%s", password, username)
+
+	// Compute the MD5 sum of the password+username string.
+	passwordString = fmt.Sprintf("%x", md5.Sum([]byte(passwordString)))
+
+	// Compute the MD5 sum of the password hash and the salt
+	passwordString = fmt.Sprintf("%s%s", passwordString, salt)
+	return fmt.Sprintf("md5%x", md5.Sum([]byte(passwordString)))
+}
+
 func handleAuthMD5(connection net.Conn, message []byte) bool {
-	return true
+	// Get the authentication credentials.
+	creds := config.GetCredentials()
+	username := creds.Username
+	password := creds.Password
+	salt := string(message[9:13])
+
+	password = createMD5Password(username, password, salt)
+
+	// Create the password message.
+	passwordMessage := protocol.CreatePasswordMessage(password)
+
+	// Send the password message to the backend.
+	_, err := Send(connection, passwordMessage)
+
+	// Check that write was successful.
+	if err != nil {
+		log.Error("Error sending password message to the backend.")
+		log.Errorf("Error: %s", err.Error())
+	}
+
+	// Read response from password message.
+	message, _, err = Receive(connection)
+
+	// Check that read was successful.
+	if err != nil {
+		log.Error("Error receiving authentication response from the backend.")
+		log.Errorf("Error: %s", err.Error())
+	}
+
+	return protocol.IsAuthenticationOk(message)
 }
 
 func handleAuthClearText(connection net.Conn) bool {
 	password := config.GetString("credentials.password")
 	passwordMessage := protocol.CreatePasswordMessage(password)
 
-	_, err := connection.Write(passwordMessage.Bytes())
+	_, err := connection.Write(passwordMessage)
 
 	if err != nil {
 		log.Error("Error sending clear text password message to the backend.")
@@ -97,7 +140,8 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 	node := nodes["master"]
 
 	/* Establish a connection with the master node. */
-	master, err := net.Dial("tcp", node.HostPort)
+	log.Debug("client auth: connecting to 'master' node")
+	master, err := Connect(node.HostPort)
 
 	if err != nil {
 		log.Error("An error occurred connecting to the master node")
@@ -108,9 +152,11 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 	defer master.Close()
 
 	/* Relay the startup message to master node. */
+	log.Debug("client auth: relay startup message to 'master' node")
 	_, err = master.Write(message[:length])
 
 	/* Receive startup response. */
+	log.Debug("client auth: receiving startup response from 'master' node")
 	message, length, err = Receive(master)
 
 	if err != nil {
@@ -159,6 +205,7 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 	 * terminate the connection and return 'true' for a successful
 	 * authentication of the client.
 	 */
+	log.Debug("client auth: checking authentication repsonse")
 	if protocol.IsAuthenticationOk(message) {
 		termMsg := protocol.GetTerminateMessage()
 		Send(master, termMsg)
@@ -170,7 +217,6 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 		err = protocol.ParseError(message)
 		log.Error("Error occurred on client startup.")
 		log.Errorf("Error: %s", err.Error())
-		log.Debugf("%s", message[:length])
 	} else {
 		log.Error("Unknown error occurred on client startup.")
 	}

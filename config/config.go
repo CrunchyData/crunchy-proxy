@@ -133,7 +133,6 @@ func SetConfigPath(path string) {
 }
 
 func ReadConfig() {
-
 	err := viper.ReadInConfig()
 	log.Debugf("Using configuration file: %s", viper.ConfigFileUsed())
 

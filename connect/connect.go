@@ -1,7 +1,6 @@
 package connect
 
 import (
-	"errors"
 	"net"
 
 	"github.com/crunchydata/crunchy-proxy/config"
@@ -27,7 +26,7 @@ func Connect(host string) (net.Conn, error) {
 	}
 
 	if config.GetBool("credentials.ssl.enable") {
-		log.Info("SSL is enabled. Determine if connection upgrade is required.")
+		log.Info("SSL connections are enabled.")
 
 		/*
 		 * First determine if SSL is allowed by the backend. To do this, send an
@@ -51,8 +50,8 @@ func Connect(host string) (net.Conn, error) {
 			return nil, err
 		}
 
-		/* Received SSL response message. */
-		response := []byte{}
+		/* Receive SSL response message. */
+		response := make([]byte, 4096)
 		_, err = connection.Read(response)
 
 		if err != nil {
@@ -67,29 +66,13 @@ func Connect(host string) (net.Conn, error) {
 		 */
 		if len(response) > 0 && response[0] != 'S' {
 			log.Error("The backend does not allow SSL connections.")
+			connection.Close()
 		} else {
-			log.Info("SSL connections are allowed.")
-			log.Info("Attempting to upgrade connection.")
-			//  connection = upgradeClientConnection(node, connection)
-			log.Info("Connection successfully upgraded.")
+			log.Debug("SSL connections are allowed by PostgreSQL.")
+			log.Debug("Attempting to upgrade connection.")
+			connection = UpgradeClientConnection(host, connection)
+			log.Debug("Connection successfully upgraded.")
 		}
-	}
-
-	username := config.GetString("credentials.username")
-	database := config.GetString("credentials.database")
-	options := config.GetStringMapString("credentials.options")
-
-	startupMessage := protocol.CreateStartupMessage(username, database, options)
-
-	connection.Write(startupMessage)
-
-	response := make([]byte, 2048)
-	connection.Read(response)
-
-	authenticated := handleAuthenticationRequest(connection, response)
-
-	if !authenticated {
-		return nil, errors.New("Authentication failed")
 	}
 
 	return connection, nil
