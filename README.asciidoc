@@ -94,7 +94,7 @@ developer information is
 found in the link:docs/crunchy-proxy-user-guide.asciidoc[User Guide] 
 
 For Docker users, you can run the proxy using the 
-link:bin/run-docker.sh[run-docker.sh] script.
+link:scripts/docker/run-docker.sh[run-docker.sh] script.
 
 == Feedback
 
