@@ -48,7 +48,8 @@ func (s *Server) Start() {
 	adminListener, err := net.Listen("tcp", adminConfig.HostPort)
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Fatal(err.Error())
+		return
 	}
 
 	s.waitGroup.Add(1)
@@ -56,6 +57,10 @@ func (s *Server) Start() {
 
 	log.Info("Proxy Server Starting...")
 	proxyListener, err := net.Listen("tcp", proxyConfig.HostPort)
+	if err != nil {
+		log.Fatal(err.Error())
+		return
+	}
 
 	s.waitGroup.Add(1)
 	go s.proxy.Serve(proxyListener)
