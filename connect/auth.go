@@ -151,16 +151,43 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 
 	nodes := config.GetNodes()
 
-	node := nodes["master"]
+	var connErr error
+	var master net.Conn
 
-	/* Establish a connection with the master node. */
-	log.Debug("client auth: connecting to 'master' node")
-	master, err := Connect(node.HostPort)
+	attemptedAuth := false
+	for thisnodename := range nodes {
+		// "ranging" through a map in Go, results in a random traversal order
+		// This is by design, and is ideal behaviour, as it randomises the auth
+		// requests across all master nodes
 
-	if err != nil {
-		log.Error("An error occurred connecting to the master node")
-		log.Errorf("Error %s", err.Error())
-		return false, err
+		if nodes[thisnodename].Role != "master" {
+			// Do not attempt auth on Roles which are not master
+			continue
+		}
+		attemptedAuth = true
+
+		/* Establish a connection with the master node. */
+		log.Debug("client auth: connecting to master node named '" + thisnodename + "'")
+		master, connErr = Connect(nodes[thisnodename].HostPort)
+
+		if connErr != nil {
+			log.Error(fmt.Sprintf("Error connecting to the master node '%s': %v", thisnodename, connErr.Error()))
+		} else {
+			break
+		}
+
+	}
+
+	if !attemptedAuth {
+		// No nodes with 'master' role were found
+		log.Error("Unable to connect to any master - No nodes with master role")
+		return false, fmt.Errorf("Unable to connect to any master - No nodes with master role")
+	}
+
+	if connErr != nil {
+		// An authentication attempt was made, but failed
+		log.Error(fmt.Sprintf("Unable to connect to any master. Last error message: %v", connErr.Error()))
+		return false, connErr
 	}
 
 	defer master.Close()
