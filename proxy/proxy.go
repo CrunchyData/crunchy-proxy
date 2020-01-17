@@ -272,6 +272,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			 * Continue to read from the backend until a 'ReadyForQuery' message is
 			 * is found.
 			 */
+			offset := 0
 			for !done {
 				if message, length, err = connect.Receive(backend); err != nil {
 					log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
@@ -280,12 +281,17 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 				}
 
 				messageType := protocol.GetMessageType(message[:length])
+				overflow := 0
 
 				/*
 				 * Examine all of the messages in the buffer and determine if any of
 				 * them are a ReadyForQuery message.
 				 */
-				for start := 0; start < length; {
+				for start := offset; start < length; {
+					if len(message[start:]) < 5 {
+						// The message length doesn't fit in this chunk; stop reading
+						break
+					}
 					messageType = protocol.GetMessageType(message[start:])
 					messageLength := protocol.GetMessageLength(message[start:])
 
@@ -293,7 +299,18 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 					 * Calculate the next start position, add '1' to the message
 					 * length to account for the message type.
 					 */
-					start = (start + int(messageLength) + 1)
+					start = start + int(messageLength) + 1
+
+					overflow = start - length
+				}
+
+				/*
+				 * As per https://www.postgresql.org/docs/12/protocol-overview.html,
+				 * use the message byte count to allow for messages that span multiple
+				 * receives from the server.
+				 */
+				if overflow > 0 {
+					offset = overflow
 				}
 
 				if _, err = connect.Send(client, message[:length]); err != nil {
@@ -302,7 +319,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 					done = true
 				}
 
-				done = (messageType == protocol.ReadyForQueryMessageType)
+				done = (messageType == protocol.ReadyForQueryMessageType && overflow <= 0)
 			}
 
 			/*
