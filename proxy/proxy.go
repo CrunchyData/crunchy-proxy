@@ -288,6 +288,10 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 				 * them are a ReadyForQuery message.
 				 */
 				for start := offset; start < length; {
+					if len(message[start:]) < 5 {
+						// The message length doesn't fit in this chunk; stop reading
+						break
+					}
 					messageType = protocol.GetMessageType(message[start:])
 					messageLength := protocol.GetMessageLength(message[start:])
 
