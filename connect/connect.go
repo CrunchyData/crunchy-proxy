@@ -15,6 +15,9 @@ limitations under the License.
 package connect
 
 import (
+	"bytes"
+	"encoding/binary"
+	"io"
 	"net"
 
 	"github.com/crunchydata/crunchy-proxy/config"
@@ -26,10 +29,58 @@ func Send(connection net.Conn, message []byte) (int, error) {
 	return connection.Write(message)
 }
 
+// ReceiveStartupMessage reads a startup message from a connection. Startup
+// messages are a special case in that they do not have a 'Message Type' byte.
+// Therefore, they must be treated differently than all other messages.
+func ReceiveStartupMessage(connection net.Conn) ([]byte, int, error) {
+	buffer := bytes.Buffer{}
+
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(connection, header); err != nil {
+		return nil, 0, err
+	}
+
+	buffer.Write(header)
+
+	// Determine the number of bytes to read. The value of 'length' is
+	// inclusive of the bytes representing the length, so we will subtract
+	// those bytes from the value.
+	n := int(binary.BigEndian.Uint32(header[:])) - 4
+
+	payload := make([]byte, n)
+	if _, err := io.ReadFull(connection, payload); err != nil {
+		return nil, 0, err
+	}
+
+	buffer.Write(payload)
+
+	return buffer.Bytes(), buffer.Len(), nil
+}
+
+// Receive reads a normal FE/BE message.
 func Receive(connection net.Conn) ([]byte, int, error) {
-	buffer := make([]byte, 4096)
-	length, err := connection.Read(buffer)
-	return buffer, length, err
+	buffer := bytes.Buffer{}
+
+	header := make([]byte, 5)
+	if _, err := io.ReadFull(connection, header); err != nil {
+		return nil, 0, err
+	}
+
+	buffer.Write(header)
+
+	// Determine the number of bytes to read. The value of 'length' is
+	// inclusive of the bytes representing the length, so we will subtract
+	// those bytes from the value.
+	n := int(binary.BigEndian.Uint32(header[1:5])) - 4
+
+	payload := make([]byte, n)
+	if n, err := io.ReadFull(connection, payload); err != nil {
+		return nil, n, err
+	}
+
+	buffer.Write(payload)
+
+	return buffer.Bytes(), buffer.Len(), nil
 }
 
 func Connect(host string) (net.Conn, error) {

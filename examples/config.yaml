@@ -9,10 +9,10 @@ nodes:
     hostport: 192.168.56.100:5432
     role: master
     metadata: {}
-  replica1:
-    hostport: 192.168.56.101:5432
-    role: replica
-    metadata: {}
+    #   replica1:
+    #hostport: 192.168.56.101:5432
+    #role: replica
+    #metadata: {}
 
 credentials:
   username: postgres

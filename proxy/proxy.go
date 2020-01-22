@@ -72,6 +72,11 @@ func (p *Proxy) setupPools() {
 			log.Infof("Connecting to node '%s' at %s...", name, node.HostPort)
 			connection, err := connect.Connect(node.HostPort)
 
+			if err != nil {
+				log.Errorf("could not connect to node: '%s' at %s: %v", name, node.HostPort, err)
+				continue
+			}
+
 			username := config.GetString("credentials.username")
 			database := config.GetString("credentials.database")
 			options := config.GetStringMapString("credentials.options")
@@ -80,13 +85,22 @@ func (p *Proxy) setupPools() {
 
 			connection.Write(startupMessage)
 
-			response := make([]byte, 4096)
-			connection.Read(response)
+			response, _, err := connect.Receive(connection)
 
 			authenticated := connect.HandleAuthenticationRequest(connection, response)
 
 			if !authenticated {
 				log.Error("Authentication failed")
+			}
+
+			// Drain all sync messages from backend.
+			//
+			// Note: there is no 'client' for these message to be sent, so
+			// we're just going to drain them for now.
+			done := false
+			for !done {
+				message, _, _ := connect.Receive(connection)
+				done = protocol.GetMessageType(message) == protocol.ReadyForQueryMessageType
 			}
 
 			if err != nil {
@@ -123,7 +137,7 @@ func (p *Proxy) returnPool(pl *pool.Pool, read bool) {
 // HandleConnection handle an incoming connection to the proxy
 func (p *Proxy) HandleConnection(client net.Conn) {
 	/* Get the client startup message. */
-	message, length, err := connect.Receive(client)
+	message, length, err := connect.ReceiveStartupMessage(client)
 
 	if err != nil {
 		log.Error("Error receiving startup message from client.")
@@ -160,7 +174,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 		 * close the connection. This is not an 'error' condition as this is an
 		 * expected behavior from a client.
 		 */
-		if message, length, err = connect.Receive(client); err == io.EOF {
+		if message, length, err = connect.ReceiveStartupMessage(client); err == io.EOF {
 			log.Info("The client closed the connection.")
 			return
 		}
@@ -263,7 +277,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			p.lock.Unlock()
 
 			/* Relay message to client and backend */
-			if _, err = connect.Send(backend, message[:length]); err != nil {
+			if _, err = connect.Send(backend, message); err != nil {
 				log.Debugf("Error sending message to backend %s", backend.RemoteAddr())
 				log.Debugf("Error: %s", err.Error())
 			}
@@ -273,35 +287,21 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			 * is found.
 			 */
 			for !done {
+				// Read the next message from the backend.
 				if message, length, err = connect.Receive(backend); err != nil {
 					log.Debugf("Error receiving response from backend %s", backend.RemoteAddr())
 					log.Debugf("Error: %s", err.Error())
 					done = true
 				}
 
-				messageType := protocol.GetMessageType(message[:length])
-
-				/*
-				 * Examine all of the messages in the buffer and determine if any of
-				 * them are a ReadyForQuery message.
-				 */
-				for start := 0; start < length; {
-					messageType = protocol.GetMessageType(message[start:])
-					messageLength := protocol.GetMessageLength(message[start:])
-
-					/*
-					 * Calculate the next start position, add '1' to the message
-					 * length to account for the message type.
-					 */
-					start = (start + int(messageLength) + 1)
-				}
-
-				if _, err = connect.Send(client, message[:length]); err != nil {
+				// Relay it to the client.
+				if _, err = connect.Send(client, message); err != nil {
 					log.Debugf("Error sending response to client %s", client.RemoteAddr())
 					log.Debugf("Error: %s", err.Error())
 					done = true
 				}
 
+				messageType := protocol.GetMessageType(message)
 				done = (messageType == protocol.ReadyForQueryMessageType)
 			}
 

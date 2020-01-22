@@ -128,15 +128,17 @@ func handleAuthClearText(connection net.Conn) bool {
 		log.Errorf("Error: %s", err.Error())
 	}
 
-	response := make([]byte, 4096)
-	_, err = connection.Read(response)
+	message, _, err := Receive(connection)
+
+	//make([]byte, 4096)
+	//_, err = connection.Read(response)
 
 	if err != nil {
 		log.Error("Error receiving clear text authentication response.")
 		log.Errorf("Error: %s", err.Error())
 	}
 
-	return protocol.IsAuthenticationOk(response)
+	return protocol.IsAuthenticationOk(message)
 }
 
 // AuthenticateClient - Establish and authenticate client connection to the backend.
@@ -187,7 +189,7 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 
 	for !protocol.IsAuthenticationOk(message) &&
 		(messageType != protocol.ErrorMessageType) {
-		Send(client, message[:length])
+		Send(client, message)
 		message, length, err = Receive(client)
 
 		/*
@@ -207,7 +209,7 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 			return false, err
 		}
 
-		Send(master, message[:length])
+		Send(master, message)
 
 		message, length, err = Receive(master)
 
@@ -215,15 +217,31 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 	}
 
 	/*
-	 * If the last response from the master node was AuthenticationOK, then
-	 * terminate the connection and return 'true' for a successful
-	 * authentication of the client.
+	 * If the last response from the master node was AuthenticationOK, then we
+	 * need to allow the backend to finish syncing with the frontend. When that
+	 * is complete, the backend will send a ReadyForQuery message. When this is
+	 * received, we can then terminate the connection to the backend and return
+	 * 'true' for a successful authentication of the client.
 	 */
 	log.Debug("client auth: checking authentication repsonse")
 	if protocol.IsAuthenticationOk(message) {
+		// Send the AuthenticationOK message.
+		Send(client, message)
+
+		// Continue reading from the backend and relaying the message to the
+		// client.
+		done := false
+
+		for !done {
+			message, _, _ = Receive(master)
+			Send(client, message)
+			done = protocol.GetMessageType(message) == protocol.ReadyForQueryMessageType
+		}
+
+		// Terminate the connection with the backend.
 		termMsg := protocol.GetTerminateMessage()
 		Send(master, termMsg)
-		Send(client, message[:length])
+
 		return true, nil
 	}
 
@@ -235,7 +253,7 @@ func AuthenticateClient(client net.Conn, message []byte, length int) (bool, erro
 		log.Error("Unknown error occurred on client startup.")
 	}
 
-	Send(client, message[:length])
+	Send(client, message)
 
 	return false, err
 }
