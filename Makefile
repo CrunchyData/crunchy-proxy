@@ -35,10 +35,6 @@ clean:
 	@rm -rf $(VENDOR_DIR)
 	@go clean -i
 
-resolve:
-	@echo "Resolving depenencies..."
-	@glide up
-
 build:
 	@echo "Building project..."
 	@go build -i -o $(BUILD_DIR)/$(CRUNCHY_PROXY)
