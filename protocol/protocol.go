@@ -16,7 +16,9 @@ package protocol
 
 import (
 	"bytes"
+        "strings"
 	"encoding/binary"
+     	"github.com/crunchydata/crunchy-proxy/util/log"
 )
 
 /* PostgreSQL Protocol Version/Code constants */
@@ -87,6 +89,57 @@ func GetMessageLength(message []byte) int32 {
 	binary.Read(reader, binary.BigEndian, &messageLength)
 
 	return messageLength
+}
+
+func clen(n []byte) int {
+    for i := 0; i < len(n); i++ {
+        if n[i] == 0 {
+            return i
+        }
+    }
+    return len(n)
+}
+
+/*
+ * 
+ *
+ * 
+ */
+func GetColumnIndex(message []byte, columnName string) int16 {
+	var messageLength int32
+        var numColumns int16
+
+        messageType := message[0]
+        /* If it's not a column message, ignore it. */
+        if messageType != 84 {
+           log.Info("Message type was not 84")
+           return 0
+        }
+
+	reader := bytes.NewReader(message[1:5])
+	binary.Read(reader, binary.BigEndian, &messageLength)
+
+	reader = bytes.NewReader(message[5:7])
+	binary.Read(reader, binary.BigEndian, &numColumns)
+
+        start := int32(7)
+        i := start
+        for j := int16(0); j < numColumns; j += 1 {
+            nullIndex := clen(message[i:])
+            end := i + int32(nullIndex)
+            tmp := string(message[i:end])
+            log.Infof("Found tmp: %s", tmp)
+            log.Infof("Found tmp: %x", tmp)
+            log.Infof("col: %x", columnName)
+            if strings.Compare(columnName, tmp) == 0 {
+               log.Info("WIN")
+               return j
+            }
+            log.Infof("j: %d i: %d end: %d colName: %s", j, i, end, columnName)
+            i = int32(end + 19) /* that's the number of trailing bytes after the null term string */
+        }
+
+	return 0
 }
 
 /* IsAuthenticationOk

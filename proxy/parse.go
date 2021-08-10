@@ -64,7 +64,7 @@ func getAnnotations(m []byte) (map[AnnotationType]bool, string) {
                 } else if len(tmp) > 1 {
 	  	  switch strings.TrimSpace(tmp[0]) {
                   case tdfColumnAnnotationString:
-                       tdfColumn = tmp[1]
+                       tdfColumn = strings.TrimSpace(tmp[1])
                   }
                 } else {
                   return annotations, tdfColumn

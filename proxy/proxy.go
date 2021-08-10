@@ -291,7 +291,11 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 				for start := 0; start < length; {
 					messageType = protocol.GetMessageType(message[start:])
 					messageLength := protocol.GetMessageLength(message[start:])
-                                        log.Infof("Message %c %s: %s", messageType, messageLength, message[start:])
+                                        numColumns := protocol.GetColumnIndex(message[start:], tdfColumn)
+                                        log.Infof("COL INDEX: %d", numColumns)
+                                        end := start + int(messageLength) + 1
+                                        log.Infof("Message %c %d: %s", messageType, messageLength, message[start:end])
+                                        log.Infof("Message in hex: %x", messageType, messageLength, message[start:end])
 					/*
 					 * Calculate the next start position, add '1' to the message
 					 * length to account for the message type.
