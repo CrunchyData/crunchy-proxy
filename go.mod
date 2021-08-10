@@ -2,7 +2,7 @@ module github.com/CrunchyData/crunchy-proxy
 
 go 1.16
 
-replace github.com/CrunchyData/crunchy-proxy => ./
+replace github.com/crunchydata/crunchy-proxy => ./
 
 require (
 	github.com/Sirupsen/logrus v1.0.1-0.20170608221441-85b1699d5056

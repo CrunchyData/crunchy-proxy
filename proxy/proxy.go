@@ -69,7 +69,7 @@ func (p *Proxy) setupPools() {
 		/* Create connections and add to pool. */
 		for i := 0; i < capacity; i++ {
 			/* Connect and authenticate */
-			log.Infof("Connecting to node '%s' at %s...", name, node.HostPort)
+			log.Infof("Connecting to adsfadsfadfa node '%s' at %s...", name, node.HostPort)
 			connection, err := connect.Connect(node.HostPort)
 
 			username := config.GetString("credentials.username")
@@ -224,6 +224,8 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			break
 		}
 
+                log.Infof("Message: %s", message)
+
 		messageType := protocol.GetMessageType(message)
 
 		/*
@@ -235,7 +237,8 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 			log.Infof("Client: %s - disconnected", client.RemoteAddr())
 			return
 		} else if messageType == protocol.QueryMessageType {
-			annotations := getAnnotations(message)
+			annotations, tdfColumn := getAnnotations(message)
+                        log.Infof("FOUND COLUMN: %s", tdfColumn)
 
 			if annotations[StartAnnotation] {
 				statementBlock = true
@@ -288,7 +291,7 @@ func (p *Proxy) HandleConnection(client net.Conn) {
 				for start := 0; start < length; {
 					messageType = protocol.GetMessageType(message[start:])
 					messageLength := protocol.GetMessageLength(message[start:])
-
+                                        log.Infof("Message %c %s: %s", messageType, messageLength, message[start:])
 					/*
 					 * Calculate the next start position, add '1' to the message
 					 * length to account for the message type.

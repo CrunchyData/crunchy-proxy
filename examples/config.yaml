@@ -1,22 +1,22 @@
 server:
   proxy:
-    hostport: 127.0.0.1:5432
+    hostport: 127.0.0.1:5433
   admin:
     hostport: 127.0.0.1:8000
 
 nodes:
   master:
-    hostport: 192.168.56.100:5432
+    hostport: 127.0.0.1:5432
     role: master
     metadata: {}
   replica1:
-    hostport: 192.168.56.101:5432
+    hostport: 127.0.0.1:5432
     role: replica
     metadata: {}
 
 credentials:
-  username: postgres
-  database: postgres
+  username: proxy
+  database: proxy_demo
   password: password
   options:
   ssl:
@@ -24,7 +24,7 @@ credentials:
     sslmode: disable
 
 pool:
-  capacity: 2
+  capacity: 1
 
 healthcheck:
   delay: 60

@@ -24,6 +24,8 @@ const (
 	readAnnotationString    string = "read"
 	startAnnotationString   string = "start"
 	endAnnotationString     string = "end"
+  	tdfColumnAnnotationString     string = "tdfColumn"
+       	tdfDelimiterAnnotationString     string = ":"
 	unknownAnnotationString string = ""
 )
 

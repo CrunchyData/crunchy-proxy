@@ -25,9 +25,10 @@ import (
 // assume a write if there is no comment in the SQL
 // or if there are no keywords in the comment
 // return (write, start, finish) booleans
-func getAnnotations(m []byte) map[AnnotationType]bool {
+func getAnnotations(m []byte) (map[AnnotationType]bool, string) {
 	message := protocol.NewMessageBuffer(m)
 	annotations := make(map[AnnotationType]bool, 0)
+        tdfColumn := ""
 
 	/* Get the query string */
 	message.ReadByte()  // read past the message type
@@ -43,22 +44,32 @@ func getAnnotations(m []byte) map[AnnotationType]bool {
 	 * an annotation was not found.
 	 */
 	if startPos < 0 || endPos < 0 {
-		return annotations
+		return annotations, tdfColumn
 	}
 
 	/* Deterimine which annotations were specified as part of the query */
 	keywords := strings.Split(query[startPos+2:endPos], ",")
 
 	for i := 0; i < len(keywords); i++ {
-		switch strings.TrimSpace(keywords[i]) {
-		case readAnnotationString:
-			annotations[ReadAnnotation] = true
-		case startAnnotationString:
-			annotations[StartAnnotation] = true
-		case endAnnotationString:
-			annotations[EndAnnotation] = true
-		}
+                tmp := strings.Split(keywords[i], tdfDelimiterAnnotationString)
+                if len(tmp) == 1 {
+		switch strings.TrimSpace(tmp[0]) {
+                  case readAnnotationString:
+          	    annotations[ReadAnnotation] = true
+	        	case startAnnotationString:
+	  	     annotations[StartAnnotation] = true
+		  case endAnnotationString:
+		     annotations[EndAnnotation] = true
+		  }
+                } else if len(tmp) > 1 {
+	  	  switch strings.TrimSpace(tmp[0]) {
+                  case tdfColumnAnnotationString:
+                       tdfColumn = tmp[1]
+                  }
+                } else {
+                  return annotations, tdfColumn
+                }
 	}
 
-	return annotations
+	return annotations, tdfColumn
 }
